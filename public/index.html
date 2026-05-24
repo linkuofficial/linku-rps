@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>猜拳 | linku.tech</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: #0a0a0f;
+    font-family: 'Courier New', monospace;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .container { width: 100%; max-width: 440px; padding: 20px; }
+  .title { text-align: center; margin-bottom: 28px; }
+  .title .sub { font-size: 11px; letter-spacing: 6px; color: #00ff88; opacity: 0.7; margin-bottom: 6px; }
+  .title h1 { font-size: 38px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 20px rgba(0,255,136,0.4); }
+  .title h1 span { color: #00ff88; }
+
+  .panel {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px; padding: 24px; margin-bottom: 16px;
+  }
+  .btn {
+    width: 100%; padding: 12px; background: transparent;
+    border: 1px solid rgba(255,255,255,0.2); border-radius: 2px;
+    color: #fff; font-family: inherit; font-size: 12px;
+    letter-spacing: 3px; cursor: pointer; transition: all 0.15s;
+    margin-bottom: 10px;
+  }
+  .btn:hover { border-color: #00ff88; color: #00ff88; }
+  .btn.green { border-color: #00ff8866; color: #00ff88; }
+  .btn.green:hover { background: rgba(0,255,136,0.08); }
+  .input {
+    width: 100%; padding: 10px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 2px;
+    color: #fff; font-family: inherit; font-size: 14px;
+    letter-spacing: 4px; text-align: center; margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .input:focus { outline: none; border-color: #00ff8866; }
+  .status {
+    text-align: center; font-size: 11px; letter-spacing: 2px;
+    color: #ffffff66; margin-bottom: 16px; min-height: 20px;
+  }
+  .status.green { color: #00ff88; }
+  .status.red { color: #ff4466; }
+
+  /* Score */
+  .score-row {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    gap: 12px; margin-bottom: 20px; text-align: center;
+  }
+  .score-box .num { font-size: 28px; font-weight: 900; }
+  .score-box .lbl { font-size: 9px; letter-spacing: 3px; color: #ffffff44; }
+  .score-box.you .num { color: #00ff88; }
+  .score-box.opp .num { color: #ff4466; }
+  .score-sep { font-size: 20px; color: #ffffff22; align-self: center; }
+
+  /* Arena */
+  .arena {
+    display: flex; justify-content: space-around; align-items: center;
+    min-height: 100px; margin-bottom: 16px; position: relative;
+  }
+  .arena-side { text-align: center; width: 110px; }
+  .arena-side .lbl { font-size: 9px; letter-spacing: 3px; margin-bottom: 8px; }
+  .arena-side.you .lbl { color: #00ff8888; }
+  .arena-side.opp .lbl { color: #ff446688; }
+  .arena-emoji { font-size: 52px; transition: all 0.3s; }
+  .arena-name { font-size: 10px; color: #ffffff55; letter-spacing: 2px; margin-top: 4px; }
+  .vs { font-size: 11px; color: #ffffff22; letter-spacing: 4px; font-weight: 700; }
+
+  /* Result */
+  .result-banner {
+    text-align: center; padding: 12px;
+    border-radius: 2px; margin-bottom: 16px;
+    animation: fadeInScale 0.3s ease;
+  }
+  .result-banner .emoji { font-size: 20px; }
+  .result-banner .text { font-size: 16px; font-weight: 700; letter-spacing: 3px; margin-left: 8px; }
+
+  /* Choice buttons */
+  .choices { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .choice-btn {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 3px;
+    padding: 14px 8px; cursor: pointer; color: #fff;
+    font-family: inherit; transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .choice-btn:hover:not(:disabled) { background: rgba(0,255,136,0.07); border-color: #00ff8844; transform: translateY(-2px); }
+  .choice-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .choice-btn .ce { font-size: 28px; }
+  .choice-btn .cn { font-size: 10px; letter-spacing: 2px; color: #ffffff66; }
+
+  /* Room link */
+  .room-link {
+    background: rgba(0,255,136,0.05);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 2px; padding: 12px; text-align: center;
+    margin-bottom: 12px; cursor: pointer;
+  }
+  .room-link .code { font-size: 28px; letter-spacing: 8px; color: #00ff88; font-weight: 900; }
+  .room-link .hint { font-size: 10px; color: #ffffff44; letter-spacing: 2px; margin-top: 4px; }
+
+  /* Cheat indicator */
+  .cheat-dot {
+    display: flex; justify-content: center; margin-bottom: 16px;
+  }
+  .cheat-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid #00ff8844; border-radius: 2px; padding: 5px 14px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+  .blink { animation: blink 0.6s infinite; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="title">
+    <div class="sub">TERMINAL v2.0</div>
+    <h1>猜<span>拳</span></h1>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="lobby">
+    <div class="panel">
+      <button class="btn green" onclick="createRoom()">＋ 建立房間</button>
+      <div style="text-align:center;font-size:11px;color:#ffffff33;letter-spacing:2px;margin:8px 0;">OR</div>
+      <input class="input" id="joinInput" placeholder="輸入房間代碼" maxlength="6">
+      <button class="btn" onclick="joinRoom()">→ 加入房間</button>
+    </div>
+    <div class="status" id="lobbyStatus"></div>
+  </div>
+
+  <!-- WAITING -->
+  <div id="waiting" style="display:none">
+    <div class="room-link" onclick="copyLink()" title="點擊複製連結">
+      <div class="code" id="roomCode">------</div>
+      <div class="hint">點擊複製連結 · 傳給朋友</div>
+    </div>
+    <div class="status blink green">等待對手加入...</div>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" style="display:none">
+    <!-- Cheat badge (hidden by default) -->
+    <div class="cheat-dot" id="cheatBadge" style="display:none">
+      <div class="cheat-pill">
+        <div class="dot"></div>
+        <span style="font-size:11px;letter-spacing:2px;color:#00ff88">CHEAT MODE ACTIVE</span>
+      </div>
+    </div>
+
+    <div class="score-row">
+      <div class="score-box you">
+        <div class="num" id="scoreYou">0</div>
+        <div class="lbl">YOU</div>
+      </div>
+      <div class="score-sep">:</div>
+      <div class="score-box opp">
+        <div class="num" id="scoreOpp">0</div>
+        <div class="lbl">OPP</div>
+      </div>
+    </div>
+
+    <div class="arena">
+      <div class="arena-side you">
+        <div class="lbl">YOU</div>
+        <div class="arena-emoji" id="emojiYou">❓</div>
+        <div class="arena-name" id="nameYou"></div>
+      </div>
+      <div class="vs">VS</div>
+      <div class="arena-side opp">
+        <div class="lbl">OPP</div>
+        <div class="arena-emoji" id="emojiOpp">❓</div>
+        <div class="arena-name" id="nameOpp"></div>
+      </div>
+    </div>
+
+    <div class="status" id="gameStatus">選擇你的出拳</div>
+
+    <div id="resultBanner" style="display:none" class="result-banner"></div>
+
+    <div class="choices" id="choiceButtons">
+      <button class="choice-btn" onclick="choose('rock')">
+        <span class="ce">✊</span><span class="cn">石頭</span>
+      </button>
+      <button class="choice-btn" onclick="choose('paper')">
+        <span class="ce">✋</span><span class="cn">布</span>
+      </button>
+      <button class="choice-btn" onclick="choose('scissors')">
+        <span class="ce">✌️</span><span class="cn">剪刀</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// === 後端設定 =========================================
+// 部屬後改成你的 Fly.io app 網域（例如 'linku-rps.fly.dev'）。
+// 留空字串 → 用當前頁面 host（本機開發）。
+const BACKEND_HOST = '';
+// =====================================================
+
+const EMOJI = { rock:'✊', paper:'✋', scissors:'✌️' };
+const NAME  = { rock:'石頭', paper:'布', scissors:'剪刀' };
+const BEATS = { rock:'scissors', paper:'rock', scissors:'paper' };
+
+let cheatMode = false;
+let mySlot = null;
+let waiting = false;
+let currentRoomId = null;
+
+// WebSocket — 有設定 BACKEND_HOST 就強制走 wss（Fly.io 預設 HTTPS）
+const host  = BACKEND_HOST || location.host;
+const proto = BACKEND_HOST ? 'wss' : (location.protocol === 'https:' ? 'wss' : 'ws');
+const ws = new WebSocket(`${proto}://${host}`);
+
+ws.onmessage = ({ data }) => {
+  const msg = JSON.parse(data);
+
+  if (msg.type === 'room_created') {
+    currentRoomId = msg.roomId;
+    document.getElementById('roomCode').textContent = msg.roomId;
+    show('waiting');
+  }
+
+  if (msg.type === 'error') {
+    document.getElementById('lobbyStatus').textContent = msg.message;
+    document.getElementById('lobbyStatus').className = 'status red';
+  }
+
+  if (msg.type === 'joined') {
+    currentRoomId = msg.roomId;
+  }
+
+  if (msg.type === 'game_start') {
+    mySlot = msg.you;
+    show('game');
+    setStatus('選擇你的出拳', '');
+    enableChoices(true);
+  }
+
+  if (msg.type === 'opponent_ready') {
+    setStatus('對手已出拳，等你...', 'green');
+  }
+
+  if (msg.type === 'round_result') {
+    const myChoice  = msg.choices[mySlot];
+    const oppChoice = msg.choices[mySlot === 'a' ? 'b' : 'a'];
+    showResult(myChoice, oppChoice, msg.result, msg.score);
+  }
+
+  if (msg.type === 'opponent_left') {
+    setStatus('對手離開了', 'red');
+    enableChoices(false);
+  }
+};
+
+function createRoom() {
+  ws.send(JSON.stringify({ type: 'create_room' }));
+}
+
+function joinRoom() {
+  const code = document.getElementById('joinInput').value.trim().toUpperCase();
+  if (!code) return;
+  ws.send(JSON.stringify({ type: 'join_room', roomId: code }));
+}
+
+function choose(choice) {
+  if (waiting) return;
+
+  ws.send(JSON.stringify({ type: 'choice', choice, cheat: cheatMode }));
+
+  document.getElementById('emojiYou').textContent = EMOJI[choice];
+  document.getElementById('nameYou').textContent = NAME[choice];
+  document.getElementById('emojiOpp').textContent = '🤔';
+  document.getElementById('nameOpp').textContent = '';
+  waiting = true;
+  enableChoices(false);
+  setStatus('等待對手...', 'green');
+  document.getElementById('resultBanner').style.display = 'none';
+}
+
+function showResult(mine, opp, result, score) {
+  waiting = false;
+  document.getElementById('emojiYou').textContent = EMOJI[mine];
+  document.getElementById('nameYou').textContent = NAME[mine];
+  document.getElementById('emojiOpp').textContent = EMOJI[opp];
+  document.getElementById('nameOpp').textContent = NAME[opp];
+
+  const iWin   = (result === 'a_wins' && mySlot === 'a') || (result === 'b_wins' && mySlot === 'b');
+  const isDraw = result === 'draw';
+
+  const banner = document.getElementById('resultBanner');
+  if (iWin)       { banner.style.cssText += 'background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.3)'; banner.innerHTML = '<span class="emoji">🏆</span><span class="text" style="color:#00ff88">你贏了！</span>'; }
+  else if (isDraw){ banner.style.cssText += 'background:rgba(255,221,0,0.08);border:1px solid rgba(255,221,0,0.3)';  banner.innerHTML = '<span class="emoji">🤝</span><span class="text" style="color:#ffdd00">平手！</span>'; }
+  else            { banner.style.cssText += 'background:rgba(255,68,102,0.08);border:1px solid rgba(255,68,102,0.3)'; banner.innerHTML = '<span class="emoji">💀</span><span class="text" style="color:#ff4466">你輸了！</span>'; }
+  banner.style.display = 'block';
+
+  const myScore  = score[mySlot];
+  const oppScore = score[mySlot === 'a' ? 'b' : 'a'];
+  document.getElementById('scoreYou').textContent = myScore;
+  document.getElementById('scoreOpp').textContent = oppScore;
+
+  setStatus('');
+  setTimeout(() => {
+    enableChoices(true);
+    document.getElementById('emojiYou').textContent = '❓';
+    document.getElementById('emojiOpp').textContent = '❓';
+    document.getElementById('nameYou').textContent = '';
+    document.getElementById('nameOpp').textContent = '';
+    document.getElementById('resultBanner').style.display = 'none';
+    setStatus('選擇你的出拳', '');
+  }, 2000);
+}
+
+function copyLink() {
+  const url = `${location.origin}?room=${currentRoomId}`;
+  navigator.clipboard.writeText(url).then(() => {
+    document.querySelector('.room-link .hint').textContent = '✓ 已複製！';
+    setTimeout(() => document.querySelector('.room-link .hint').textContent = '點擊複製連結 · 傳給朋友', 2000);
+  });
+}
+
+function show(section) {
+  ['lobby','waiting','game'].forEach(id => {
+    document.getElementById(id).style.display = id === section ? 'block' : 'none';
+  });
+}
+
+function setStatus(text, cls='') {
+  const el = document.getElementById('gameStatus');
+  el.textContent = text;
+  el.className = 'status' + (cls ? ' '+cls : '');
+}
+
+function enableChoices(on) {
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = !on);
+}
+
+// 作弊密碼（鍵盤輸入 cheat）
+let buf = '';
+document.addEventListener('keydown', e => {
+  buf = (buf + e.key).slice(-5);
+  if (buf === 'cheat') {
+    cheatMode = !cheatMode;
+    document.getElementById('cheatBadge').style.display = cheatMode ? 'flex' : 'none';
+    buf = '';
+  }
+});
+
+// 如果 URL 帶有 ?room=XXXX 自動填入
+const urlRoom = new URLSearchParams(location.search).get('room');
+if (urlRoom) {
+  document.getElementById('joinInput').value = urlRoom;
+}
+</script>
+</body>
+</html>
