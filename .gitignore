@@ -1,7 +1,5 @@
-node_modules/
-npm-debug.log*
+node_modules
+dist
+.pnpm-store
+*.local
 .env
-.env.local
-.DS_Store
-.vercel
-fly.toml.backup

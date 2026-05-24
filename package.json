@@ -1,15 +1,15 @@
 {
-  "name": "rps-game",
-  "version": "1.0.0",
+  "name": "rps-monorepo",
+  "version": "2.0.0",
   "description": "Online rock-paper-scissors with rooms",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
   "private": true,
-  "dependencies": {
-    "express": "^5.2.1",
-    "uuid": "^14.0.0",
-    "ws": "^8.21.0"
+  "scripts": {
+    "dev:server": "pnpm --filter @rps/server dev",
+    "dev:client": "pnpm --filter @rps/client dev",
+    "build": "pnpm --filter @rps/client build",
+    "start": "pnpm --filter @rps/server start"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
