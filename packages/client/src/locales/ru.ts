@@ -34,6 +34,7 @@ const dict: Dict = {
 
     'common.backToTools': 'Назад к инструментам',
     'common.backHome': 'Назад на главную',
+    'common.startNow': 'Начать сразу',
     'common.createRoom': 'Создать комнату',
     'common.joinRoom': 'Войти в комнату',
     'common.join': 'Войти',
@@ -57,6 +58,7 @@ const dict: Dict = {
     'sample.optionD': 'Вариант D',
 
     'lobby.bestOf': 'До победы в',
+    'lobby.soloHint': 'Сразу начните пользоваться этим инструментом в одиночку.',
     'lobby.toolSyncHint': 'После создания комнаты любой игрок может использовать инструмент, а результаты синхронизируются в реальном времени.',
     'lobby.joinCodePlaceholder': 'Введите код комнаты',
 

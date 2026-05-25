@@ -34,6 +34,7 @@ const dict: Dict = {
 
     'common.backToTools': 'Volver a herramientas',
     'common.backHome': 'Volver al inicio',
+    'common.startNow': 'Empezar ahora',
     'common.createRoom': 'Crear sala',
     'common.joinRoom': 'Unirse a sala',
     'common.join': 'Unirse',
@@ -57,6 +58,7 @@ const dict: Dict = {
     'sample.optionD': 'Opcion D',
 
     'lobby.bestOf': 'Mejor de',
+    'lobby.soloHint': 'Empieza a usar esta herramienta en solitario de inmediato.',
     'lobby.toolSyncHint': 'Tras crear la sala, cualquiera puede usar la herramienta y los resultados se sincronizan en tiempo real.',
     'lobby.joinCodePlaceholder': 'Introduce el codigo de sala',
 

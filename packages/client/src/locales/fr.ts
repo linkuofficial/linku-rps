@@ -34,6 +34,7 @@ const dict: Dict = {
 
     'common.backToTools': 'Retour aux outils',
     'common.backHome': 'Retour à l accueil',
+    'common.startNow': 'Commencer maintenant',
     'common.createRoom': 'Créer une salle',
     'common.joinRoom': 'Rejoindre une salle',
     'common.join': 'Rejoindre',
@@ -57,6 +58,7 @@ const dict: Dict = {
     'sample.optionD': 'Option D',
 
     'lobby.bestOf': 'Manche gagnante',
+    'lobby.soloHint': 'Utilisez cet outil immédiatement en solo.',
     'lobby.toolSyncHint': 'Apres création de la salle, les actions des deux joueurs se synchronisent en temps réel.',
     'lobby.joinCodePlaceholder': 'Entrez le code de salle',
 

@@ -79,20 +79,20 @@ export default function App() {
 
   const pageFallback = <div className="h-48 border border-border bg-surface-alt" aria-hidden="true" />;
   const isToolSelector = state.phase === 'tool_select';
+  const canGoHome = !isToolSelector;
 
   return (
     <div className={`min-h-[100dvh] bg-surface ${isToolSelector ? 'px-0' : 'flex items-start sm:items-center justify-center p-4 sm:p-6'}`}>
       <div className={`w-full ${isToolSelector ? 'min-h-[100dvh]' : 'max-w-md pt-2 sm:pt-0'}`}>
-        {!isToolSelector && (
+        {canGoHome && (
           <div className="mb-3 flex items-center justify-between">
-            {state.phase === 'lobby' ? (
-              <button
-                onClick={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
-                className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
-              >
-                <Icon name="arrow_back" className="text-[20px]" />
-              </button>
-            ) : <div />}
+            <button
+              onClick={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
+              className="inline-flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              <Icon name="arrow_back" className="text-[20px]" />
+              <span className="text-label-sm font-medium">{t('common.backHome')}</span>
+            </button>
             <LanguageSwitcherCompact />
           </div>
         )}

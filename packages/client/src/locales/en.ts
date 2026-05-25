@@ -34,6 +34,7 @@ const dict: Dict = {
 
     'common.backToTools': 'Back to tools',
     'common.backHome': 'Back to home',
+    'common.startNow': 'Start now',
     'common.createRoom': 'Create room',
     'common.joinRoom': 'Join room',
     'common.join': 'Join',
@@ -57,6 +58,7 @@ const dict: Dict = {
     'sample.optionD': 'Option D',
 
     'lobby.bestOf': 'Best of',
+    'lobby.soloHint': 'Start using this tool immediately by yourself.',
     'lobby.toolSyncHint': 'After creating a room, either side can use the tool and results are synced in real time.',
     'lobby.joinCodePlaceholder': 'Enter room code',
 

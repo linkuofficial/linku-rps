@@ -34,6 +34,7 @@ const dict: Dict = {
 
     'common.backToTools': 'ツール一覧へ戻る',
     'common.backHome': 'ホームへ戻る',
+    'common.startNow': '今すぐ始める',
     'common.createRoom': 'ルーム作成',
     'common.joinRoom': 'ルーム参加',
     'common.join': '参加',
@@ -57,6 +58,7 @@ const dict: Dict = {
     'sample.optionD': 'オプション D',
 
     'lobby.bestOf': '先取本数',
+    'lobby.soloHint': '一人ですぐこのツールを使い始められます。',
     'lobby.toolSyncHint': 'ルーム作成後は、どちらが操作しても結果がリアルタイムで同期されます。',
     'lobby.joinCodePlaceholder': 'ルームコードを入力',
 

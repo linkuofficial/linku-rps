@@ -34,6 +34,7 @@ const dict: Dict = {
 
 	'common.backToTools': 'العودة إلى الأدوات',
 	'common.backHome': 'العودة إلى الرئيسية',
+	'common.startNow': 'ابدأ الآن',
 	'common.createRoom': 'إنشاء غرفة',
 	'common.joinRoom': 'الانضمام إلى غرفة',
 	'common.join': 'انضمام',
@@ -57,6 +58,7 @@ const dict: Dict = {
 	'sample.optionD': 'خيار د',
 
 	'lobby.bestOf': 'الأفضل من',
+	'lobby.soloHint': 'ابدأ استخدام هذه الأداة بنفسك فورا.',
 	'lobby.toolSyncHint': 'بعد إنشاء الغرفة، يمكن لأي طرف استخدام الأداة وستتزامن النتائج فورا.',
 	'lobby.joinCodePlaceholder': 'أدخل رمز الغرفة',
 

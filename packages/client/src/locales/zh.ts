@@ -34,6 +34,7 @@ const dict: Dict = {
 
     'common.backToTools': '返回工具列表',
     'common.backHome': '回到首頁',
+    'common.startNow': '直接開始',
     'common.createRoom': '建立房間',
     'common.joinRoom': '加入房間',
     'common.join': '加入',
@@ -57,6 +58,7 @@ const dict: Dict = {
     'sample.optionD': '選項 D',
 
     'lobby.bestOf': '局數（Best of）',
+    'lobby.soloHint': '自己立即開始使用這個工具。',
     'lobby.toolSyncHint': '建立房間後，任一方操作工具都會即時同步結果。',
     'lobby.joinCodePlaceholder': '輸入房間代碼',
 
