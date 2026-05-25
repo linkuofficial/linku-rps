@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from '../lib/motion-lite';
 import type { ToolId } from '@rps/shared';
 import { useI18n } from '../i18n';
@@ -10,8 +11,13 @@ interface Props {
 
 export default function Waiting({ roomId, bestOf, tool }: Props) {
   const { t, toolName } = useI18n();
+  const [copied, setCopied] = useState(false);
   const inviteUrl = `${window.location.origin}/join/${roomId}`;
-  const copyLink = async () => { await navigator.clipboard.writeText(inviteUrl); };
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   const usesBestOf = tool === 'rps';
 
   return (
@@ -21,7 +27,7 @@ export default function Waiting({ roomId, bestOf, tool }: Props) {
       <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
         className="bg-surface-alt border border-border p-8 mb-4 cursor-pointer hover:border-black transition-colors" onClick={copyLink}>
         <div dir="ltr" className="text-headline-lg font-mono tracking-[0.4em] text-on-surface mb-2">{roomId}</div>
-        <div className="text-label-sm text-on-surface-variant">{t('waiting.copyInvite')}</div>
+        <div className="text-label-sm text-on-surface-variant">{copied ? t('common.copied') : t('waiting.copyInvite')}</div>
       </motion.div>
       {usesBestOf ? (
         <div className="text-label-md text-on-surface-variant">{t('waiting.bestOfHint', { bestOf, wins: Math.ceil(bestOf / 2) })}</div>

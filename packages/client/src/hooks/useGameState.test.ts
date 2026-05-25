@@ -12,6 +12,8 @@ describe('useGameState reducer', () => {
         const next = gameReducerForTest(base, {
             type: 'REACTION_STATE',
             phase: 'countdown',
+            mode: 'f1',
+            targetCentis: null,
             readyBy: ['a', 'b'],
             countdownMs: 1800,
             greenAt: 123456,
@@ -35,6 +37,9 @@ describe('useGameState reducer', () => {
 
         const next = gameReducerForTest(base, {
             type: 'REACTION_RESULT',
+            mode: 'f1',
+            targetCentis: null,
+            deltaCentis: { a: null, b: null },
             winner: 'b',
             falseStartBy: 'a',
             reactionMs: { a: null, b: 182 },
@@ -47,6 +52,34 @@ describe('useGameState reducer', () => {
         expect(next.reactionState?.falseStartBy).toBe('a');
         expect(next.reactionState?.reactionMs.b).toBe(182);
         expect(next.history.at(-1)?.event).toBe('reaction_result');
+    });
+
+    it('stores target mode result metadata and delta values', () => {
+        const base = {
+            ...initialGameStateForTest,
+            roomId: 'ROOM03',
+            tool: 'reaction' as const,
+        };
+
+        const next = gameReducerForTest(base, {
+            type: 'REACTION_RESULT',
+            mode: 'target',
+            targetCentis: 186,
+            deltaCentis: { a: 24, b: 11 },
+            winner: 'b',
+            falseStartBy: null,
+            reactionMs: { a: 2100, b: 1970 },
+            by: 'b',
+            round: 5,
+            timestamp: 2000,
+        });
+
+        expect(next.reactionState?.mode).toBe('target');
+        expect(next.reactionState?.targetCentis).toBe(186);
+        expect(next.reactionState?.deltaCentis).toEqual({ a: 24, b: 11 });
+        expect(next.history.at(-1)?.details).toContain('target=186');
+        expect(next.history.at(-1)?.details).toContain('da=24');
+        expect(next.history.at(-1)?.details).toContain('db=11');
     });
 
     it('stores server error reason for invalid game state', () => {

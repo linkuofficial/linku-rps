@@ -176,6 +176,76 @@ describe('websocket rate limiting integration', () => {
         await closeClient(host);
     });
 
+    it('supports solo target mode and returns target delta payload', async () => {
+        const host = await openClient();
+
+        const createdPromise = waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'room_created' }> => msg.type === 'room_created');
+        const startedPromise = waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'game_start' }> => msg.type === 'game_start');
+        host.send(JSON.stringify({ type: 'create_room', bestOf: 1, tool: 'reaction' }));
+        await Promise.all([createdPromise, startedPromise]);
+
+        host.send(JSON.stringify({ type: 'reaction_ready', ready: true, mode: 'target' }));
+        const countdown = await waitForMessage(
+            host,
+            (msg): msg is Extract<ServerMessage, { type: 'reaction_state' }> => msg.type === 'reaction_state' && msg.phase === 'countdown',
+        );
+        expect(countdown.mode).toBe('target');
+        expect(countdown.targetCentis).not.toBeNull();
+
+        await waitForMessage(
+            host,
+            (msg): msg is Extract<ServerMessage, { type: 'reaction_state' }> => msg.type === 'reaction_state' && msg.phase === 'green' && msg.mode === 'target',
+            5000,
+        );
+
+        await wait(120);
+        host.send(JSON.stringify({ type: 'reaction_press' }));
+
+        const result = await waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'reaction_result' }> => msg.type === 'reaction_result');
+        expect(result.mode).toBe('target');
+        expect(result.targetCentis).not.toBeNull();
+        expect(result.winner).toBe('a');
+        expect(result.deltaCentis.a).not.toBeNull();
+        expect(result.deltaCentis.b).toBeNull();
+
+        await closeClient(host);
+    });
+
+    it('resolves target mode winner by closest timing delta', async () => {
+        const { host, guest } = await setupRoom('reaction');
+
+        host.send(JSON.stringify({ type: 'reaction_ready', ready: true, mode: 'target' }));
+        guest.send(JSON.stringify({ type: 'reaction_ready', ready: true, mode: 'target' }));
+
+        const countdown = await waitForMessage(
+            host,
+            (msg): msg is Extract<ServerMessage, { type: 'reaction_state' }> => msg.type === 'reaction_state' && msg.phase === 'countdown',
+        );
+        expect(countdown.mode).toBe('target');
+        expect(countdown.targetCentis).not.toBeNull();
+
+        await waitForMessage(
+            host,
+            (msg): msg is Extract<ServerMessage, { type: 'reaction_state' }> => msg.type === 'reaction_state' && msg.phase === 'green' && msg.mode === 'target',
+            5000,
+        );
+
+        host.send(JSON.stringify({ type: 'reaction_press' }));
+        await wait(200);
+        guest.send(JSON.stringify({ type: 'reaction_press' }));
+
+        const result = await waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'reaction_result' }> => msg.type === 'reaction_result');
+        expect(result.mode).toBe('target');
+        expect(result.targetCentis).not.toBeNull();
+        expect(result.winner).toBe('b');
+        expect(result.deltaCentis.a).not.toBeNull();
+        expect(result.deltaCentis.b).not.toBeNull();
+        expect((result.deltaCentis.b ?? Number.POSITIVE_INFINITY)).toBeLessThan((result.deltaCentis.a ?? Number.POSITIVE_INFINITY));
+
+        await closeClient(host);
+        await closeClient(guest);
+    });
+
     it('closes the socket when system bucket limit is exceeded', async () => {
         const ws = await openClient();
         const closePromise = waitForClose(ws);

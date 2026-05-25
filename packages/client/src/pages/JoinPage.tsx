@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, useRoute } from 'wouter';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameState } from '../hooks/useGameState';
@@ -14,10 +14,14 @@ export default function JoinPage() {
   const code = params?.code;
   const [, navigate] = useLocation();
   const { state, dispatch, handleMessage } = useGameState();
+  const joinSentRef = useRef(false);
   const { send, connected } = useWebSocket(handleMessage);
 
   useEffect(() => {
-    if (connected && code) { send({ type: 'join_room', roomId: code }); }
+    if (connected && code && !joinSentRef.current) {
+      joinSentRef.current = true;
+      send({ type: 'join_room', roomId: code });
+    }
   }, [connected, code, send]);
 
   if (state.phase === 'playing') {

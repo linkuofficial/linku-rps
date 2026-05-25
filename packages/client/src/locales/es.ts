@@ -34,7 +34,6 @@ const dict: Dict = {
 
     'common.backToTools': 'Volver a herramientas',
     'common.backHome': 'Volver al inicio',
-    'common.startNow': 'Empezar ahora',
     'common.createRoom': 'Crear sala',
     'common.joinRoom': 'Unirse a sala',
     'common.join': 'Unirse',
@@ -47,6 +46,8 @@ const dict: Dict = {
     'common.hideChat': 'Ocultar chat',
     'common.privacyPolicy': 'Politica de privacidad',
     'common.copyrightNotice': 'Aviso de derechos de autor',
+    'common.copied': 'Copiado!',
+    'common.copyInvite': 'Copiar enlace de invitacion',
 
     'sample.person1': 'Alicia',
     'sample.person2': 'Beto',
@@ -58,9 +59,10 @@ const dict: Dict = {
     'sample.optionD': 'Opcion D',
 
     'lobby.bestOf': 'Mejor de',
-    'lobby.soloHint': 'Empieza a usar esta herramienta en solitario de inmediato.',
     'lobby.toolSyncHint': 'Tras crear la sala, cualquiera puede usar la herramienta y los resultados se sincronizan en tiempo real.',
     'lobby.joinCodePlaceholder': 'Introduce el codigo de sala',
+    'lobby.soloHint': 'Inicia una sala de inmediato. Comparte el enlace para invitar a otro jugador.',
+    'common.startNow': 'Empezar ahora',
 
     'waiting.waitingOpponent': 'Esperando al oponente...',
     'waiting.copyInvite': 'Toca para copiar el enlace de invitacion',

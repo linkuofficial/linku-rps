@@ -44,8 +44,6 @@ textarea {
   min-height: 100vh;
 }
 
-
-
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -158,7 +156,6 @@ textarea {
 }
 
 @media (max-width: 768px) {
-
   button,
   input,
   select,

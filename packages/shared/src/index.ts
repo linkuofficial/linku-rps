@@ -14,6 +14,7 @@ export type DrawMode = 'pick' | 'shuffle';
 
 export type ToolId = 'rps' | 'coin' | 'dice' | 'wheel' | 'draw' | 'reaction';
 export type ReactionPhase = 'idle' | 'countdown' | 'green' | 'result';
+export type ReactionMode = 'f1' | 'target';
 
 export type RoundResult = 'a_wins' | 'b_wins' | 'draw';
 
@@ -128,6 +129,7 @@ export interface DrawRunMsg {
 export interface ReactionReadyMsg {
   type: 'reaction_ready';
   ready: boolean;
+  mode?: ReactionMode;
 }
 
 export interface ReactionPressMsg {
@@ -284,6 +286,8 @@ export interface DrawResultMsg {
 export interface ReactionStateMsg {
   type: 'reaction_state';
   phase: ReactionPhase;
+  mode: ReactionMode;
+  targetCentis: number | null;
   readyBy: PlayerSlot[];
   countdownMs: number | null;
   greenAt: number | null;
@@ -294,10 +298,13 @@ export interface ReactionStateMsg {
 
 export interface ReactionResultMsg {
   type: 'reaction_result';
+  mode: ReactionMode;
+  targetCentis: number | null;
+  deltaCentis: { a: number | null; b: number | null };
   winner: PlayerSlot | 'draw';
   falseStartBy: PlayerSlot | null;
   reactionMs: { a: number | null; b: number | null };
-  by: PlayerSlot;
+  by: PlayerSlot | 'system';
   round: number;
   timestamp: number;
 }

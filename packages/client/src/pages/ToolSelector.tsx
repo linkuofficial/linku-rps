@@ -58,6 +58,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
     const handleJoin = () => {
         const code = joinCode.trim().toUpperCase();
         if (!code || pendingJoinCode) return;
+        if (!/^[1-6]\d{3}$/.test(code)) return;
         onJoinByCode?.(code);
     };
 
@@ -131,19 +132,18 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                 <input
                                     ref={inputRef}
                                     type="text"
-                                    maxLength={4}
-                                    inputMode="numeric"
+                                    maxLength={6}
                                     placeholder={t('lobby.joinCodePlaceholder')}
                                     value={joinCode}
                                     dir="ltr"
                                     disabled={!!pendingJoinCode}
-                                    onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
+                                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                                     onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                                    className="flex-1 min-w-0 px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors disabled:opacity-50"
+                                    className="flex-1 min-w-0 px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors disabled:opacity-50"
                                 />
                                 <button
                                     onClick={handleJoin}
-                                    disabled={!joinCode.trim() || !!pendingJoinCode}
+                                    disabled={!/^[1-6]\d{3}$/.test(joinCode.trim()) || !!pendingJoinCode}
                                     className="shrink-0 px-5 py-3 bg-white border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {pendingJoinCode

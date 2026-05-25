@@ -34,7 +34,6 @@ const dict: Dict = {
 
     'common.backToTools': 'Back to tools',
     'common.backHome': 'Back to home',
-    'common.startNow': 'Start now',
     'common.createRoom': 'Create room',
     'common.joinRoom': 'Join room',
     'common.join': 'Join',
@@ -47,6 +46,8 @@ const dict: Dict = {
     'common.hideChat': 'Hide chat',
     'common.privacyPolicy': 'Privacy Policy',
     'common.copyrightNotice': 'Copyright Notice',
+    'common.copied': 'Copied!',
+    'common.copyInvite': 'Copy invite link',
 
     'sample.person1': 'Alice',
     'sample.person2': 'Bob',
@@ -58,9 +59,10 @@ const dict: Dict = {
     'sample.optionD': 'Option D',
 
     'lobby.bestOf': 'Best of',
-    'lobby.soloHint': 'Start using this tool immediately by yourself.',
     'lobby.toolSyncHint': 'After creating a room, either side can use the tool and results are synced in real time.',
     'lobby.joinCodePlaceholder': 'Enter room code',
+    'lobby.soloHint': 'Start a room immediately. Share the link to invite another player.',
+    'common.startNow': 'Start now',
 
     'waiting.waitingOpponent': 'Waiting for opponent...',
     'waiting.copyInvite': 'Tap to copy invite link',

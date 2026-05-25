@@ -34,7 +34,6 @@ const dict: Dict = {
 
     'common.backToTools': 'ツール一覧へ戻る',
     'common.backHome': 'ホームへ戻る',
-    'common.startNow': '今すぐ始める',
     'common.createRoom': 'ルーム作成',
     'common.joinRoom': 'ルーム参加',
     'common.join': '参加',
@@ -47,6 +46,8 @@ const dict: Dict = {
     'common.hideChat': 'チャットを隠す',
     'common.privacyPolicy': 'プライバシーポリシー',
     'common.copyrightNotice': '著作権表示',
+    'common.copied': 'コピー済み！',
+    'common.copyInvite': '招待リンクをコピー',
 
     'sample.person1': 'アリス',
     'sample.person2': 'ボブ',
@@ -58,9 +59,10 @@ const dict: Dict = {
     'sample.optionD': 'オプション D',
 
     'lobby.bestOf': '先取本数',
-    'lobby.soloHint': '一人ですぐこのツールを使い始められます。',
     'lobby.toolSyncHint': 'ルーム作成後は、どちらが操作しても結果がリアルタイムで同期されます。',
     'lobby.joinCodePlaceholder': 'ルームコードを入力',
+    'lobby.soloHint': 'すぐに開始できます。リンクを共有して他のプレイヤーを招待できます。',
+    'common.startNow': '今すぐ始める',
 
     'waiting.waitingOpponent': '対戦相手を待っています...',
     'waiting.copyInvite': 'タップして招待リンクをコピー',

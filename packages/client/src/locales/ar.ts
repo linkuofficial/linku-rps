@@ -34,7 +34,6 @@ const dict: Dict = {
 
 	'common.backToTools': 'العودة إلى الأدوات',
 	'common.backHome': 'العودة إلى الرئيسية',
-	'common.startNow': 'ابدأ الآن',
 	'common.createRoom': 'إنشاء غرفة',
 	'common.joinRoom': 'الانضمام إلى غرفة',
 	'common.join': 'انضمام',
@@ -47,6 +46,8 @@ const dict: Dict = {
 	'common.hideChat': 'إخفاء الدردشة',
 	'common.privacyPolicy': 'سياسة الخصوصية',
 	'common.copyrightNotice': 'إشعار حقوق النشر',
+	'common.copied': 'تم النسخ!',
+	'common.copyInvite': 'نسخ رابط الدعوة',
 
 	'sample.person1': 'علي',
 	'sample.person2': 'ليلى',
@@ -58,9 +59,10 @@ const dict: Dict = {
 	'sample.optionD': 'خيار د',
 
 	'lobby.bestOf': 'الأفضل من',
-	'lobby.soloHint': 'ابدأ استخدام هذه الأداة بنفسك فورا.',
 	'lobby.toolSyncHint': 'بعد إنشاء الغرفة، يمكن لأي طرف استخدام الأداة وستتزامن النتائج فورا.',
 	'lobby.joinCodePlaceholder': 'أدخل رمز الغرفة',
+	'lobby.soloHint': 'ابدأ الغرفة فورًا. شارك الرابط لدعوة لاعب آخر.',
+	'common.startNow': 'ابدأ الآن',
 
 	'waiting.waitingOpponent': 'بانتظار الخصم...',
 	'waiting.copyInvite': 'اضغط لنسخ رابط الدعوة',

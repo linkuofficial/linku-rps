@@ -34,7 +34,6 @@ const dict: Dict = {
 
     'common.backToTools': 'Назад к инструментам',
     'common.backHome': 'Назад на главную',
-    'common.startNow': 'Начать сразу',
     'common.createRoom': 'Создать комнату',
     'common.joinRoom': 'Войти в комнату',
     'common.join': 'Войти',
@@ -47,6 +46,8 @@ const dict: Dict = {
     'common.hideChat': 'Скрыть чат',
     'common.privacyPolicy': 'Политика конфиденциальности',
     'common.copyrightNotice': 'Уведомление об авторских правах',
+    'common.copied': 'Скопировано!',
+    'common.copyInvite': 'Копировать ссылку-приглашение',
 
     'sample.person1': 'Алиса',
     'sample.person2': 'Боб',
@@ -58,9 +59,10 @@ const dict: Dict = {
     'sample.optionD': 'Вариант D',
 
     'lobby.bestOf': 'До победы в',
-    'lobby.soloHint': 'Сразу начните пользоваться этим инструментом в одиночку.',
     'lobby.toolSyncHint': 'После создания комнаты любой игрок может использовать инструмент, а результаты синхронизируются в реальном времени.',
     'lobby.joinCodePlaceholder': 'Введите код комнаты',
+    'lobby.soloHint': 'Создайте комнату немедленно. Поделитесь ссылкой, чтобы пригласить другого игрока.',
+    'common.startNow': 'Начать сейчас',
 
     'waiting.waitingOpponent': 'Ожидание соперника...',
     'waiting.copyInvite': 'Нажмите, чтобы скопировать ссылку-приглашение',

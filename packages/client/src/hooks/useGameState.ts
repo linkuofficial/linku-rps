@@ -1,5 +1,5 @@
 ﻿import { useReducer, useCallback } from 'react';
-import type { Choice, CoinFace, DrawMode, ErrorCode, InvalidGameStateReason, PlayerSlot, ReactionPhase, ServerMessage, ToolId, WheelOption } from '@rps/shared';
+import type { Choice, CoinFace, DrawMode, ErrorCode, InvalidGameStateReason, PlayerSlot, ReactionMode, ReactionPhase, ServerMessage, ToolId, WheelOption } from '@rps/shared';
 
 export type GamePhase = 'tool_select' | 'lobby' | 'waiting' | 'playing' | 'finished';
 
@@ -48,12 +48,15 @@ export interface GameState {
     drawResult: { mode: DrawMode; noRepeat: boolean; sourceNames: string[]; orderedNames: string[]; pickedName: string | null; remainingNames: string[]; by: PlayerSlot; round: number; timestamp: number } | null;
     reactionState: {
         phase: ReactionPhase;
+        mode: ReactionMode;
+        targetCentis: number | null;
         readyBy: PlayerSlot[];
         countdownMs: number | null;
         greenAt: number | null;
         falseStartBy: PlayerSlot | null;
         winner: PlayerSlot | 'draw' | null;
         reactionMs: { a: number | null; b: number | null };
+        deltaCentis: { a: number | null; b: number | null };
         by: PlayerSlot | 'system';
         round: number;
         timestamp: number;
@@ -131,6 +134,8 @@ type Action =
     | {
         type: 'REACTION_STATE';
         phase: ReactionPhase;
+        mode: ReactionMode;
+        targetCentis: number | null;
         readyBy: PlayerSlot[];
         countdownMs: number | null;
         greenAt: number | null;
@@ -140,10 +145,13 @@ type Action =
     }
     | {
         type: 'REACTION_RESULT';
+        mode: ReactionMode;
+        targetCentis: number | null;
+        deltaCentis: { a: number | null; b: number | null };
         winner: PlayerSlot | 'draw';
         falseStartBy: PlayerSlot | null;
         reactionMs: { a: number | null; b: number | null };
-        by: PlayerSlot;
+        by: PlayerSlot | 'system';
         round: number;
         timestamp: number;
     }
@@ -449,12 +457,15 @@ function reducer(state: GameState, action: Action): GameState {
                 ...state,
                 reactionState: {
                     phase: action.phase,
+                    mode: action.mode,
+                    targetCentis: action.targetCentis,
                     readyBy: action.readyBy,
                     countdownMs: action.countdownMs,
                     greenAt: action.greenAt,
                     falseStartBy: state.reactionState?.falseStartBy ?? null,
                     winner: state.reactionState?.winner ?? null,
                     reactionMs: state.reactionState?.reactionMs ?? { a: null, b: null },
+                    deltaCentis: state.reactionState?.deltaCentis ?? { a: null, b: null },
                     by: action.by,
                     round: action.round,
                     timestamp: action.timestamp,
@@ -479,7 +490,7 @@ function reducer(state: GameState, action: Action): GameState {
                         scoreA: null,
                         scoreB: null,
                         timestamp: action.timestamp,
-                        details: `ready=${action.readyBy.join('|') || 'none'}; countdownMs=${action.countdownMs ?? 'na'}`,
+                        details: `mode=${action.mode}; target=${action.targetCentis ?? 'na'}; ready=${action.readyBy.join('|') || 'none'}; countdownMs=${action.countdownMs ?? 'na'}`,
                     }]
                     : state.history,
             };
@@ -488,12 +499,15 @@ function reducer(state: GameState, action: Action): GameState {
                 ...state,
                 reactionState: {
                     phase: 'result',
+                    mode: action.mode,
+                    targetCentis: action.targetCentis,
                     readyBy: [],
                     countdownMs: null,
                     greenAt: null,
                     falseStartBy: action.falseStartBy,
                     winner: action.winner,
                     reactionMs: action.reactionMs,
+                    deltaCentis: action.deltaCentis,
                     by: action.by,
                     round: action.round,
                     timestamp: action.timestamp,
@@ -518,7 +532,7 @@ function reducer(state: GameState, action: Action): GameState {
                         scoreA: null,
                         scoreB: null,
                         timestamp: action.timestamp,
-                        details: `false_start=${action.falseStartBy ?? 'none'}; a=${action.reactionMs.a ?? 'na'}; b=${action.reactionMs.b ?? 'na'}`,
+                        details: `mode=${action.mode}; target=${action.targetCentis ?? 'na'}; false_start=${action.falseStartBy ?? 'none'}; a=${action.reactionMs.a ?? 'na'}; b=${action.reactionMs.b ?? 'na'}; da=${action.deltaCentis.a ?? 'na'}; db=${action.deltaCentis.b ?? 'na'}`,
                     }]
                     : state.history,
             };
@@ -639,10 +653,10 @@ export function useGameState() {
                 });
                 break;
             case 'reaction_state':
-                dispatch({ type: 'REACTION_STATE', phase: msg.phase, readyBy: msg.readyBy, countdownMs: msg.countdownMs, greenAt: msg.greenAt, by: msg.by, round: msg.round, timestamp: msg.timestamp });
+                dispatch({ type: 'REACTION_STATE', phase: msg.phase, mode: msg.mode, targetCentis: msg.targetCentis, readyBy: msg.readyBy, countdownMs: msg.countdownMs, greenAt: msg.greenAt, by: msg.by, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'reaction_result':
-                dispatch({ type: 'REACTION_RESULT', winner: msg.winner, falseStartBy: msg.falseStartBy, reactionMs: msg.reactionMs, by: msg.by, round: msg.round, timestamp: msg.timestamp });
+                dispatch({ type: 'REACTION_RESULT', mode: msg.mode, targetCentis: msg.targetCentis, deltaCentis: msg.deltaCentis, winner: msg.winner, falseStartBy: msg.falseStartBy, reactionMs: msg.reactionMs, by: msg.by, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'chat_broadcast':
                 dispatch({ type: 'CHAT', entry: { from: msg.from, text: msg.text, timestamp: msg.timestamp } });

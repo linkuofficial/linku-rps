@@ -17,6 +17,7 @@ import {
     type ErrorCode,
     type InvalidGameStateReason,
     type PlayerSlot,
+    type ReactionMode,
     type ReactionPhase,
     type RoundResult,
     type ServerMessage,
@@ -78,11 +79,14 @@ interface Room {
     round: number;
     cheatEnabled: boolean;
     chatTimestamps: { a: number[]; b: number[] };
+    emojiTimestamps: { a: number[]; b: number[] };
     winner: PlayerSlot | null;
     tool: ToolId;
     rematchRequested: { a: boolean; b: boolean };
     reactionSession: {
         phase: ReactionPhase;
+        mode: ReactionMode;
+        targetCentis: number | null;
         ready: Record<PlayerSlot, boolean>;
         greenAt: number | null;
         countdownMs: number | null;
@@ -232,7 +236,7 @@ function clearCleanup(room: Room) {
 
 function csvEscape(value: string | number | null): string {
     if (value === null || value === undefined) return '';
-    const text = String(value).replace(/"/g, '""');
+    const text = String(value).replace(/\r\n|\r|\n/g, ' ').replace(/"/g, '""');
     return `"${text}"`;
 }
 
@@ -321,6 +325,14 @@ function oppositeSlot(slot: PlayerSlot): PlayerSlot {
     return slot === 'a' ? 'b' : 'a';
 }
 
+function normalizeReactionMode(value: unknown): ReactionMode {
+    return value === 'target' ? 'target' : 'f1';
+}
+
+function pickReactionTargetCentis(): number {
+    return 80 + Math.floor(Math.random() * 420);
+}
+
 function clearReactionTimer(room: Room) {
     if (!room.reactionSession?.timer) return;
     clearTimeout(room.reactionSession.timer);
@@ -331,6 +343,8 @@ function ensureReactionSession(room: Room) {
     if (room.reactionSession) return room.reactionSession;
     room.reactionSession = {
         phase: 'idle',
+        mode: 'f1',
+        targetCentis: null,
         ready: { a: false, b: false },
         greenAt: null,
         countdownMs: null,
@@ -348,6 +362,8 @@ function broadcastReactionState(roomId: string, room: Room, by: PlayerSlot | 'sy
     broadcast(room, {
         type: 'reaction_state',
         phase: reaction.phase,
+        mode: reaction.mode,
+        targetCentis: reaction.targetCentis,
         readyBy,
         countdownMs: reaction.countdownMs,
         greenAt: reaction.greenAt,
@@ -362,11 +378,48 @@ function broadcastReactionState(roomId: string, room: Room, by: PlayerSlot | 'sy
         result: reaction.phase,
         scoreA: room.score.a,
         scoreB: room.score.b,
-        details: `ready=${readyBy.join('|') || 'none'}`,
+        details: `mode=${reaction.mode}; target=${reaction.targetCentis ?? 'na'}; ready=${readyBy.join('|') || 'none'}`,
     });
 }
 
-function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot, winner: PlayerSlot | 'draw', falseStartBy: PlayerSlot | null) {
+function resolveTargetWinner(
+    reaction: Room['reactionSession'],
+    roomHasOpponent: boolean,
+): { winner: PlayerSlot | 'draw'; deltaCentis: { a: number | null; b: number | null } } {
+    if (!reaction || !reaction.greenAt || reaction.targetCentis === null) {
+        return { winner: 'draw', deltaCentis: { a: null, b: null } };
+    }
+    const greenAt = reaction.greenAt;
+    const targetCentis = reaction.targetCentis;
+
+    const toDelta = (slot: PlayerSlot) => {
+        const pressedAt = reaction.presses[slot];
+        if (!pressedAt) return null;
+        const elapsedCentis = Math.round((pressedAt - greenAt) / 10);
+        return Math.abs(elapsedCentis - targetCentis);
+    };
+
+    const deltaCentis = { a: toDelta('a'), b: toDelta('b') };
+
+    if (!roomHasOpponent) {
+        return { winner: deltaCentis.a === null ? 'draw' : 'a', deltaCentis };
+    }
+    if (deltaCentis.a === null && deltaCentis.b === null) {
+        return { winner: 'draw', deltaCentis };
+    }
+    if (deltaCentis.a === null) {
+        return { winner: 'b', deltaCentis };
+    }
+    if (deltaCentis.b === null) {
+        return { winner: 'a', deltaCentis };
+    }
+    if (deltaCentis.a === deltaCentis.b) {
+        return { winner: 'draw', deltaCentis };
+    }
+    return { winner: deltaCentis.a < deltaCentis.b ? 'a' : 'b', deltaCentis };
+}
+
+function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot | 'system', winner: PlayerSlot | 'draw', falseStartBy: PlayerSlot | null) {
     const reaction = room.reactionSession;
     if (!reaction) return;
     const greenAt = reaction.greenAt;
@@ -375,6 +428,12 @@ function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot, winne
         a: greenAt && reaction.presses.a ? Math.max(0, reaction.presses.a - greenAt) : null,
         b: greenAt && reaction.presses.b ? Math.max(0, reaction.presses.b - greenAt) : null,
     };
+    const deltaCentis = reaction.mode === 'target'
+        ? {
+            a: reactionMs.a === null || reaction.targetCentis === null ? null : Math.abs(Math.round(reactionMs.a / 10) - reaction.targetCentis),
+            b: reactionMs.b === null || reaction.targetCentis === null ? null : Math.abs(Math.round(reactionMs.b / 10) - reaction.targetCentis),
+        }
+        : { a: null, b: null };
 
     if (winner === 'a') room.score.a += 1;
     if (winner === 'b') room.score.b += 1;
@@ -387,6 +446,9 @@ function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot, winne
 
     broadcast(room, {
         type: 'reaction_result',
+        mode: reaction.mode,
+        targetCentis: reaction.targetCentis,
+        deltaCentis,
         winner,
         falseStartBy,
         reactionMs,
@@ -402,9 +464,10 @@ function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot, winne
         result: winner,
         scoreA: room.score.a,
         scoreB: room.score.b,
-        details: `false_start=${falseStartBy ?? 'none'}; a=${reactionMs.a ?? 'na'}; b=${reactionMs.b ?? 'na'}`,
+        details: `mode=${reaction.mode}; target=${reaction.targetCentis ?? 'na'}; false_start=${falseStartBy ?? 'none'}; a=${reactionMs.a ?? 'na'}; b=${reactionMs.b ?? 'na'}; da=${deltaCentis.a ?? 'na'}; db=${deltaCentis.b ?? 'na'}`,
     });
 
+    reaction.targetCentis = null;
     room.round += 1;
 }
 
@@ -551,6 +614,7 @@ wss.on('connection', (ws) => {
                     round: 1,
                     cheatEnabled: false,
                     chatTimestamps: { a: [], b: [] },
+                    emojiTimestamps: { a: [], b: [] },
                     winner: null,
                     tool,
                     rematchRequested: { a: false, b: false },
@@ -1032,18 +1096,21 @@ wss.on('connection', (ws) => {
 
                 const reaction = ensureReactionSession(room);
                 const shouldReady = msg.ready === true;
+                const nextMode = msg.mode ? normalizeReactionMode(msg.mode) : reaction.mode;
 
                 if (reaction.phase === 'countdown' || reaction.phase === 'green') {
                     invalidGameState('reaction_ready_locked');
                     return;
                 }
 
+                reaction.mode = nextMode;
                 reaction.ready[playerSlot] = shouldReady;
                 reaction.phase = 'idle';
                 reaction.presses = {};
                 reaction.greenAt = null;
                 reaction.countdownMs = null;
                 reaction.falseStartBy = null;
+                reaction.targetCentis = null;
 
                 broadcastReactionState(roomId, room, playerSlot);
 
@@ -1051,6 +1118,7 @@ wss.on('connection', (ws) => {
                     const reactionRoomId = roomId;
                     const delay = 1200 + Math.floor(Math.random() * 2600);
                     reaction.phase = 'countdown';
+                    reaction.targetCentis = reaction.mode === 'target' ? pickReactionTargetCentis() : null;
                     reaction.countdownMs = delay;
                     reaction.greenAt = Date.now() + delay;
 
@@ -1065,6 +1133,18 @@ wss.on('connection', (ws) => {
                         current.reactionSession.phase = 'green';
                         current.reactionSession.countdownMs = 0;
                         broadcastReactionState(reactionRoomId, current, 'system');
+
+                        if (current.reactionSession.mode === 'target') {
+                            clearReactionTimer(current);
+                            current.reactionSession.timer = setTimeout(() => {
+                                const latest = rooms[reactionRoomId];
+                                if (!latest || latest.tool !== 'reaction' || !latest.reactionSession) return;
+                                if (latest.reactionSession.phase !== 'green' || latest.reactionSession.mode !== 'target') return;
+
+                                const resolved = resolveTargetWinner(latest.reactionSession, !!latest.b);
+                                finalizeReactionRound(reactionRoomId, latest, 'system', resolved.winner, null);
+                            }, 7000);
+                        }
                     }, delay);
                 }
                 break;
@@ -1109,6 +1189,25 @@ wss.on('connection', (ws) => {
 
                 const now = Date.now();
                 reaction.presses[playerSlot] = now;
+
+                if (reaction.mode === 'target') {
+                    if (!room.b) {
+                        const resolved = resolveTargetWinner(reaction, false);
+                        finalizeReactionRound(roomId, room, playerSlot, resolved.winner, null);
+                        break;
+                    }
+
+                    const other = oppositeSlot(playerSlot);
+                    const otherPressed = reaction.presses[other];
+                    if (!otherPressed) {
+                        broadcastReactionState(roomId, room, playerSlot);
+                        break;
+                    }
+
+                    const resolved = resolveTargetWinner(reaction, true);
+                    finalizeReactionRound(roomId, room, playerSlot, resolved.winner, null);
+                    break;
+                }
 
                 if (!room.b) {
                     finalizeReactionRound(roomId, room, playerSlot, playerSlot, null);
@@ -1256,11 +1355,11 @@ wss.on('connection', (ws) => {
                     invalidGameState('emoji_invalid_payload');
                     return;
                 }
-                if (isRateLimited(room.chatTimestamps[playerSlot])) {
+                if (isRateLimited(room.emojiTimestamps[playerSlot])) {
                     invalidGameState('emoji_rate_limited');
                     return;
                 }
-                room.chatTimestamps[playerSlot].push(Date.now());
+                room.emojiTimestamps[playerSlot].push(Date.now());
                 broadcast(room, { type: 'emoji_broadcast', from: playerSlot, emoji });
                 break;
             }

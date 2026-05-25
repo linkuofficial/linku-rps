@@ -20,9 +20,8 @@ export default function LanguageSwitcherCompact() {
         locale === 'zh' ? 'font-locale-zh' : locale === 'ja' ? 'font-locale-ja' : locale === 'ar' ? 'font-locale-ar' : locale === 'ru' ? 'font-locale-cyrillic' : 'font-locale-latin';
 
     return (
-        <label className={`inline-flex items-center gap-2 border border-border bg-white px-2 py-2 text-label-sm text-on-surface ${nextLocaleClass}`}>
+        <label className={`inline-flex items-center border border-border bg-white px-2 py-2 text-label-sm text-on-surface ${nextLocaleClass}`}>
             <span className="sr-only">Language</span>
-            <span aria-hidden="true" className="text-[11px] text-on-surface-variant uppercase tracking-[0.08em]">Lang</span>
             <select
                 value={locale}
                 onChange={(event) => setLocale(event.target.value as Locale)}
