@@ -342,6 +342,17 @@ export default function Game({ state, send, dispatch }: Props) {
         </button>
     ) : null;
 
+    if (!state.tool) {
+        return (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+                {errorBanner}
+                <div className="border border-border bg-surface-alt p-5 text-center text-label-md text-on-surface-variant">
+                    {t('join.joining')}
+                </div>
+            </motion.div>
+        );
+    }
+
     if (state.tool === 'coin') {
         const coinEmoji = state.coinResult?.result === 'heads'
             ? '\uD83E\uDE99'

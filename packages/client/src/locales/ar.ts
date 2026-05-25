@@ -28,6 +28,7 @@ const dict: Dict = {
 	'toolSelector.subtitle': 'أدوات مزامنة متعددة اللاعبين. أنشئ غرفة وشارك الرابط.',
 	'toolSelector.standardTime': 'التوقيت المحلي',
 	'toolSelector.comingSoon': 'قريبا',
+	'toolSelector.joining': 'جارٍ الانضمام…',
 	'toolSelector.footerNote': '© 2025 Linku Toolbox. تصميم أدوات بسيط.',
 	'toolSelector.footerLead': 'Linku Tech',
 

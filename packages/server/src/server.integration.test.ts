@@ -126,6 +126,56 @@ async function setupRoom(tool: ToolId) {
 }
 
 describe('websocket rate limiting integration', () => {
+    it('starts non-rps rooms immediately for solo play', async () => {
+        const host = await openClient();
+
+        const createdPromise = waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'room_created' }> => msg.type === 'room_created');
+        const startedPromise = waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'game_start' }> => msg.type === 'game_start');
+        host.send(JSON.stringify({ type: 'create_room', bestOf: 1, tool: 'coin' }));
+        const [created, started] = await Promise.all([createdPromise, startedPromise]);
+
+        expect(created.tool).toBe('coin');
+        expect(started.tool).toBe('coin');
+        expect(started.you).toBe('a');
+
+        host.send(JSON.stringify({ type: 'coin_flip' }));
+        const result = await waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'coin_result' }> => msg.type === 'coin_result');
+        expect(result.by).toBe('a');
+
+        await closeClient(host);
+    });
+
+    it('supports solo reaction rounds after readying up', async () => {
+        const host = await openClient();
+
+        const createdPromise = waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'room_created' }> => msg.type === 'room_created');
+        const startedPromise = waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'game_start' }> => msg.type === 'game_start');
+        host.send(JSON.stringify({ type: 'create_room', bestOf: 1, tool: 'reaction' }));
+        await Promise.all([createdPromise, startedPromise]);
+
+        host.send(JSON.stringify({ type: 'reaction_ready', ready: true }));
+        const countdown = await waitForMessage(
+            host,
+            (msg): msg is Extract<ServerMessage, { type: 'reaction_state' }> => msg.type === 'reaction_state' && msg.phase === 'countdown',
+        );
+        expect(countdown.readyBy).toEqual(['a']);
+
+        const green = await waitForMessage(
+            host,
+            (msg): msg is Extract<ServerMessage, { type: 'reaction_state' }> => msg.type === 'reaction_state' && msg.phase === 'green',
+            5000,
+        );
+        expect(green.by).toBe('system');
+
+        host.send(JSON.stringify({ type: 'reaction_press' }));
+        const result = await waitForMessage(host, (msg): msg is Extract<ServerMessage, { type: 'reaction_result' }> => msg.type === 'reaction_result');
+        expect(result.winner).toBe('a');
+        expect(result.reactionMs.a).not.toBeNull();
+        expect(result.reactionMs.b).toBeNull();
+
+        await closeClient(host);
+    });
+
     it('closes the socket when system bucket limit is exceeded', async () => {
         const ws = await openClient();
         const closePromise = waitForClose(ws);

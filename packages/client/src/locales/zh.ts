@@ -28,6 +28,7 @@ const dict: Dict = {
     'toolSelector.subtitle': '多人同步小工具。建立房間後分享連結即可。',
     'toolSelector.standardTime': '當地時間',
     'toolSelector.comingSoon': '即將推出',
+    'toolSelector.joining': '加入中…',
     'toolSelector.footerNote': '© 2025 Linku Toolbox。極簡工具設計。',
     'toolSelector.footerLead': 'Linku Tech',
 

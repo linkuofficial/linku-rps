@@ -28,6 +28,7 @@ const dict: Dict = {
     'toolSelector.subtitle': 'Multiplayer sync tools. Create a room and share a link.',
     'toolSelector.standardTime': 'Local Time',
     'toolSelector.comingSoon': 'Coming Soon',
+    'toolSelector.joining': 'Joining…',
     'toolSelector.footerNote': '© 2025 Linku Toolbox. Minimalist Utility Design.',
     'toolSelector.footerLead': 'Linku Tech',
 

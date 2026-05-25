@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gameReducerForTest, initialGameStateForTest } from './useGameState';
+import { gameReducerForTest, inferToolFromRoomIdForTest, initialGameStateForTest, resolveIncomingToolForTest } from './useGameState';
 
 describe('useGameState reducer', () => {
     it('updates reaction state when reaction_state arrives', () => {
@@ -59,5 +59,15 @@ describe('useGameState reducer', () => {
 
         expect(next.error?.code).toBe('invalid_game_state');
         expect(next.error?.reason).toBe('chat_rate_limited');
+    });
+
+    it('infers tool from room id prefix for joined rooms', () => {
+        expect(inferToolFromRoomIdForTest('3456')).toBe('wheel');
+        expect(inferToolFromRoomIdForTest('4987')).toBe('dice');
+    });
+
+    it('prefers inferred or fallback tool when runtime payload omits tool', () => {
+        expect(resolveIncomingToolForTest(undefined, '5123', null)).toBe('draw');
+        expect(resolveIncomingToolForTest(undefined, null, 'reaction')).toBe('reaction');
     });
 });

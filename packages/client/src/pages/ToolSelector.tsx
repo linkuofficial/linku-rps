@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from '../lib/motion-lite';
 import { Link } from 'wouter';
 import type { ToolId } from '@rps/shared';
@@ -9,6 +9,10 @@ import type { IconName } from '../components/Icon';
 
 interface Props {
     onSelect: (tool: ToolId) => void;
+    onJoinByCode?: (code: string) => void;
+    pendingJoinCode?: string | null;
+    error?: { code: string; message: string } | null;
+    onClearError?: () => void;
 }
 
 interface ToolCard {
@@ -29,18 +33,33 @@ const TOOLS: ToolMeta[] = [
     { id: 'reaction', enabled: true, icon: 'touch_app' },
 ];
 
-export default function ToolSelector({ onSelect }: Props) {
-    const { t, locale } = useI18n();
+export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, error, onClearError }: Props) {
+    const { t, locale, translateError } = useI18n();
     const isRtl = locale === 'ar';
     const currentYear = new Date().getFullYear();
     const copyrightYears = currentYear > 2025 ? `2025-${currentYear}` : '2025';
     const [clock, setClock] = useState(() => formatClock(locale));
+    const [joinCode, setJoinCode] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setClock(formatClock(locale));
         const timer = window.setInterval(() => setClock(formatClock(locale)), 1000);
         return () => window.clearInterval(timer);
     }, [locale]);
+
+    // Clear local input when pending join is resolved (joined or error)
+    useEffect(() => {
+        if (!pendingJoinCode) {
+            setJoinCode('');
+        }
+    }, [pendingJoinCode]);
+
+    const handleJoin = () => {
+        const code = joinCode.trim().toUpperCase();
+        if (!code || pendingJoinCode) return;
+        onJoinByCode?.(code);
+    };
 
     const displayNames: Record<ToolId, string> = {
         rps: t('tool.name.rps'),
@@ -87,6 +106,54 @@ export default function ToolSelector({ onSelect }: Props) {
                             </button>
                         ))}
                     </div>
+
+                    {/* Join by code — skip tool selection for joiners */}
+                    {onJoinByCode && (
+                        <div className="mt-6 w-full max-w-sm mx-auto">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="flex-1 h-px bg-border" />
+                                <span className="text-label-sm text-on-surface-variant uppercase tracking-[0.05em]">{t('common.or')}</span>
+                                <div className="flex-1 h-px bg-border" />
+                            </div>
+
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="border-2 border-black bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-3 text-center cursor-pointer"
+                                    onClick={() => { onClearError?.(); inputRef.current?.focus(); }}
+                                >
+                                    {translateError(error.code, error.message)}
+                                </motion.div>
+                            )}
+
+                            <div className="flex gap-2">
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    maxLength={4}
+                                    inputMode="numeric"
+                                    placeholder={t('lobby.joinCodePlaceholder')}
+                                    value={joinCode}
+                                    dir="ltr"
+                                    disabled={!!pendingJoinCode}
+                                    onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                                    className="flex-1 min-w-0 px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors disabled:opacity-50"
+                                />
+                                <button
+                                    onClick={handleJoin}
+                                    disabled={!joinCode.trim() || !!pendingJoinCode}
+                                    className="shrink-0 px-5 py-3 bg-white border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {pendingJoinCode
+                                        ? <><span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />{t('toolSelector.joining')}</>
+                                        : t('common.join')
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </main>
 

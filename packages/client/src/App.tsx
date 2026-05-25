@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useGameState } from './hooks/useGameState';
 import LanguageSwitcherCompact from './components/LanguageSwitcherCompact';
@@ -66,6 +66,17 @@ export default function App() {
     }
   }, [state.phase, state.reconnectToken, state.roomId]);
 
+  const pendingJoinSentRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (state.pendingJoinCode && connected && pendingJoinSentRef.current !== state.pendingJoinCode) {
+      pendingJoinSentRef.current = state.pendingJoinCode;
+      send({ type: 'join_room', roomId: state.pendingJoinCode });
+    }
+    if (!state.pendingJoinCode) {
+      pendingJoinSentRef.current = null;
+    }
+  }, [state.pendingJoinCode, connected, send]);
+
   const pageFallback = <div className="h-48 border border-border bg-surface-alt" aria-hidden="true" />;
   const isToolSelector = state.phase === 'tool_select';
 
@@ -109,7 +120,13 @@ export default function App() {
 
         <Suspense fallback={pageFallback}>
           {isToolSelector && (
-            <ToolSelector onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })} />
+            <ToolSelector
+              onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
+              onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
+              pendingJoinCode={state.pendingJoinCode}
+              error={state.error}
+              onClearError={() => dispatch({ type: 'CLEAR_ERROR' })}
+            />
           )}
           {state.phase === 'lobby' && state.tool && (
             <Lobby

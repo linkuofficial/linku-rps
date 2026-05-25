@@ -182,14 +182,34 @@ function broadcast(room: Room, msg: ServerMessage) {
 
 function getPhase(room: Room): 'waiting' | 'playing' | 'finished' {
     if (room.winner) return 'finished';
-    if (!room.b) return 'waiting';
+    if (!room.a) return 'waiting';
+    if (room.tool === 'rps' && !room.b) return 'waiting';
     return 'playing';
 }
 
-function createRoomId(): string {
-    let roomId = uuidv4().slice(0, 6).toUpperCase();
+function supportsSoloPlay(tool: ToolId): boolean {
+    return tool !== 'rps';
+}
+
+function isGameplayReady(room: Room | undefined): room is Room {
+    if (!room || !room.a) return false;
+    return supportsSoloPlay(room.tool) || !!room.b;
+}
+
+const TOOL_ID_PREFIX: Record<ToolId, string> = {
+    rps: '1',
+    coin: '2',
+    wheel: '3',
+    dice: '4',
+    draw: '5',
+    reaction: '6',
+};
+
+function createRoomId(tool: ToolId): string {
+    const prefix = TOOL_ID_PREFIX[tool];
+    let roomId = prefix + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     while (rooms[roomId]) {
-        roomId = uuidv4().slice(0, 6).toUpperCase();
+        roomId = prefix + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     }
     return roomId;
 }
@@ -305,6 +325,20 @@ function clearReactionTimer(room: Room) {
     if (!room.reactionSession?.timer) return;
     clearTimeout(room.reactionSession.timer);
     room.reactionSession.timer = null;
+}
+
+function ensureReactionSession(room: Room) {
+    if (room.reactionSession) return room.reactionSession;
+    room.reactionSession = {
+        phase: 'idle',
+        ready: { a: false, b: false },
+        greenAt: null,
+        countdownMs: null,
+        presses: {},
+        falseStartBy: null,
+        timer: null,
+    };
+    return room.reactionSession;
 }
 
 function broadcastReactionState(roomId: string, room: Room, by: PlayerSlot | 'system') {
@@ -504,7 +538,7 @@ wss.on('connection', (ws) => {
             case 'create_room': {
                 const bestOf = [1, 3, 5, 7].includes(msg.bestOf) ? msg.bestOf : 3;
                 const tool = TOOL_IDS.includes(msg.tool) ? msg.tool : 'rps';
-                const newRoomId = createRoomId();
+                const newRoomId = createRoomId(tool);
                 const reconnectToken = uuidv4();
                 rooms[newRoomId] = {
                     a: ws,
@@ -545,6 +579,23 @@ wss.on('connection', (ws) => {
                     tool,
                     reconnectToken,
                 });
+                if (supportsSoloPlay(tool)) {
+                    send(ws, {
+                        type: 'game_start',
+                        you: 'a',
+                        bestOf,
+                        tool,
+                    });
+                    logEvent(newRoomId, rooms[newRoomId], {
+                        event: 'player_joined',
+                        round: 1,
+                        actor: 'a',
+                        result: 'solo_start',
+                        scoreA: 0,
+                        scoreB: 0,
+                        details: 'solo_game_start',
+                    });
+                }
                 break;
             }
 
@@ -677,7 +728,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!isGameplayReady(room) || !room.b) {
                     invalidGameState('room_not_ready');
                     return;
                 }
@@ -760,7 +811,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!isGameplayReady(room)) {
                     invalidGameState('room_not_ready');
                     return;
                 }
@@ -796,7 +847,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!isGameplayReady(room)) {
                     invalidGameState('room_not_ready');
                     return;
                 }
@@ -848,7 +899,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!isGameplayReady(room)) {
                     invalidGameState('room_not_ready');
                     return;
                 }
@@ -891,7 +942,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!isGameplayReady(room)) {
                     invalidGameState('room_not_ready');
                     return;
                 }
@@ -970,7 +1021,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!isGameplayReady(room)) {
                     invalidGameState('room_not_ready');
                     return;
                 }
@@ -979,19 +1030,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
 
-                if (!room.reactionSession) {
-                    room.reactionSession = {
-                        phase: 'idle',
-                        ready: { a: false, b: false },
-                        greenAt: null,
-                        countdownMs: null,
-                        presses: {},
-                        falseStartBy: null,
-                        timer: null,
-                    };
-                }
-
-                const reaction = room.reactionSession;
+                const reaction = ensureReactionSession(room);
                 const shouldReady = msg.ready === true;
 
                 if (reaction.phase === 'countdown' || reaction.phase === 'green') {
@@ -1008,7 +1047,7 @@ wss.on('connection', (ws) => {
 
                 broadcastReactionState(roomId, room, playerSlot);
 
-                if (reaction.ready.a && reaction.ready.b) {
+                if (reaction.ready.a && (room.b ? reaction.ready.b : true)) {
                     const reactionRoomId = roomId;
                     const delay = 1200 + Math.floor(Math.random() * 2600);
                     reaction.phase = 'countdown';
@@ -1037,7 +1076,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!isGameplayReady(room)) {
                     invalidGameState('room_not_ready');
                     return;
                 }
@@ -1055,7 +1094,7 @@ wss.on('connection', (ws) => {
                 if (reaction.phase === 'countdown') {
                     reaction.falseStartBy = playerSlot;
                     reaction.presses[playerSlot] = Date.now();
-                    finalizeReactionRound(roomId, room, playerSlot, oppositeSlot(playerSlot), playerSlot);
+                    finalizeReactionRound(roomId, room, playerSlot, room.b ? oppositeSlot(playerSlot) : 'draw', playerSlot);
                     break;
                 }
 
@@ -1070,6 +1109,11 @@ wss.on('connection', (ws) => {
 
                 const now = Date.now();
                 reaction.presses[playerSlot] = now;
+
+                if (!room.b) {
+                    finalizeReactionRound(roomId, room, playerSlot, playerSlot, null);
+                    break;
+                }
 
                 const other = oppositeSlot(playerSlot);
                 const otherPressed = reaction.presses[other];

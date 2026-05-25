@@ -64,6 +64,7 @@ export interface GameState {
     rematchRequestedByMe: boolean;
     rematchRequestedByOpponent: boolean;
     error: { code: ErrorCode; message: string; reason?: InvalidGameStateReason } | null;
+    pendingJoinCode: string | null;
 }
 
 type Action =
@@ -154,7 +155,9 @@ type Action =
     | { type: 'REMATCH_STARTED'; bestOf: number }
     | { type: 'OPPONENT_LEFT' }
     | { type: 'ERROR'; code: ErrorCode; message: string; reason?: InvalidGameStateReason }
-    | { type: 'CLEAR_ERROR' };
+    | { type: 'CLEAR_ERROR' }
+    | { type: 'SET_PENDING_JOIN'; code: string }
+    | { type: 'CLEAR_PENDING_JOIN' };
 
 export type GameAction = Action;
 
@@ -183,7 +186,31 @@ const initialState: GameState = {
     rematchRequestedByMe: false,
     rematchRequestedByOpponent: false,
     error: null,
+    pendingJoinCode: null,
 };
+
+const ROOM_ID_TOOL_PREFIX: Record<string, ToolId> = {
+    '1': 'rps',
+    '2': 'coin',
+    '3': 'wheel',
+    '4': 'dice',
+    '5': 'draw',
+    '6': 'reaction',
+};
+
+function isToolId(value: unknown): value is ToolId {
+    return value === 'rps' || value === 'coin' || value === 'dice' || value === 'wheel' || value === 'draw' || value === 'reaction';
+}
+
+function inferToolFromRoomId(roomId: string | null | undefined): ToolId | null {
+    if (!roomId) return null;
+    return ROOM_ID_TOOL_PREFIX[roomId.charAt(0)] ?? null;
+}
+
+function resolveIncomingTool(candidate: unknown, roomId: string | null | undefined, fallback: ToolId | null): ToolId | null {
+    if (isToolId(candidate)) return candidate;
+    return inferToolFromRoomId(roomId) ?? fallback;
+}
 
 function resetForNewMatch(state: GameState, bestOf: number): GameState {
     return {
@@ -236,6 +263,7 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 history: [],
                 error: null,
+                pendingJoinCode: null,
             };
         case 'GAME_START':
             return { ...resetForNewMatch(state, action.bestOf), mySlot: action.you, tool: action.tool };
@@ -513,9 +541,17 @@ function reducer(state: GameState, action: Action): GameState {
         case 'OPPONENT_LEFT':
             return { ...state, error: { code: 'opponent_disconnected', message: 'Opponent disconnected. Waiting up to 30 seconds for reconnection.' } };
         case 'ERROR':
-            return { ...state, error: { code: action.code, message: action.message, reason: action.reason } };
+            return {
+                ...state,
+                error: { code: action.code, message: action.message, reason: action.reason },
+                ...(state.phase === 'tool_select' ? { pendingJoinCode: null } : {}),
+            };
         case 'CLEAR_ERROR':
             return { ...state, error: null };
+        case 'SET_PENDING_JOIN':
+            return { ...state, pendingJoinCode: action.code, error: null };
+        case 'CLEAR_PENDING_JOIN':
+            return { ...state, pendingJoinCode: null, error: null };
         default:
             return state;
     }
@@ -523,6 +559,8 @@ function reducer(state: GameState, action: Action): GameState {
 
 export const gameReducerForTest = reducer;
 export const initialGameStateForTest = initialState;
+export const inferToolFromRoomIdForTest = inferToolFromRoomId;
+export const resolveIncomingToolForTest = resolveIncomingTool;
 
 let emojiIdCounter = 0;
 
@@ -531,21 +569,32 @@ export function useGameState() {
 
     const handleMessage = useCallback((msg: ServerMessage) => {
         switch (msg.type) {
-            case 'room_created':
-                dispatch({ type: 'ROOM_CREATED', roomId: msg.roomId, bestOf: msg.bestOf, tool: msg.tool, reconnectToken: msg.reconnectToken });
+            case 'room_created': {
+                const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
+                if (!tool) break;
+                dispatch({ type: 'ROOM_CREATED', roomId: msg.roomId, bestOf: msg.bestOf, tool, reconnectToken: msg.reconnectToken });
                 break;
-            case 'joined':
-                dispatch({ type: 'JOINED', roomId: msg.roomId, bestOf: msg.bestOf, tool: msg.tool, reconnectToken: msg.reconnectToken });
+            }
+            case 'joined': {
+                const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
+                if (!tool) break;
+                dispatch({ type: 'JOINED', roomId: msg.roomId, bestOf: msg.bestOf, tool, reconnectToken: msg.reconnectToken });
                 break;
-            case 'game_start':
-                dispatch({ type: 'GAME_START', you: msg.you, bestOf: msg.bestOf, tool: msg.tool });
+            }
+            case 'game_start': {
+                const tool = resolveIncomingTool(msg.tool, state.roomId, state.tool);
+                if (!tool) break;
+                dispatch({ type: 'GAME_START', you: msg.you, bestOf: msg.bestOf, tool });
                 break;
-            case 'reconnect_ok':
+            }
+            case 'reconnect_ok': {
+                const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
+                if (!tool) break;
                 dispatch({
                     type: 'RECONNECT_OK',
                     roomId: msg.roomId,
                     bestOf: msg.bestOf,
-                    tool: msg.tool,
+                    tool,
                     you: msg.you,
                     phase: msg.phase,
                     score: msg.score,
@@ -556,6 +605,7 @@ export function useGameState() {
                     reconnectToken: msg.reconnectToken,
                 });
                 break;
+            }
             case 'opponent_ready':
                 dispatch({ type: 'OPPONENT_READY' });
                 break;
@@ -619,7 +669,7 @@ export function useGameState() {
                 dispatch({ type: 'ERROR', code: msg.code, message: msg.message, reason: msg.reason });
                 break;
         }
-    }, []);
+    }, [state.roomId, state.tool]);
 
     return { state, dispatch, handleMessage };
 }

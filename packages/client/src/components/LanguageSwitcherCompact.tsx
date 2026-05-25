@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useI18n } from '../i18n';
 import type { Locale } from '../locales/types';
 
@@ -16,7 +15,6 @@ const LOCALES = ['en', 'zh', 'ja', 'fr', 'es', 'ar', 'ru'] as const;
 
 export default function LanguageSwitcherCompact() {
     const { locale, setLocale } = useI18n();
-    const currentLabel = useMemo(() => LANGUAGE_LABELS[locale], [locale]);
 
     const nextLocaleClass =
         locale === 'zh' ? 'font-locale-zh' : locale === 'ja' ? 'font-locale-ja' : locale === 'ar' ? 'font-locale-ar' : locale === 'ru' ? 'font-locale-cyrillic' : 'font-locale-latin';
@@ -37,7 +35,6 @@ export default function LanguageSwitcherCompact() {
                     </option>
                 ))}
             </select>
-            <span aria-hidden="true" className="text-[11px] text-on-surface-variant">{currentLabel}</span>
         </label>
     );
 }

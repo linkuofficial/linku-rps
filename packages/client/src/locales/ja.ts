@@ -28,6 +28,7 @@ const dict: Dict = {
     'toolSelector.subtitle': 'マルチプレイヤー同期ツール。ルームを作ってリンクを共有。',
     'toolSelector.standardTime': '現地時間',
     'toolSelector.comingSoon': '近日公開',
+    'toolSelector.joining': '参加中…',
     'toolSelector.footerNote': '© 2024 Linku Toolbox。ミニマルユーティリティデザイン。',
     'toolSelector.footerLead': 'Linku Tech',
 

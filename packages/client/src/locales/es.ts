@@ -28,6 +28,7 @@ const dict: Dict = {
     'toolSelector.subtitle': 'Herramientas sincronizadas multijugador. Crea una sala y comparte un enlace.',
     'toolSelector.standardTime': 'Hora local',
     'toolSelector.comingSoon': 'Proximamente',
+    'toolSelector.joining': 'Uniendose…',
     'toolSelector.footerNote': '© 2025 Linku Toolbox. Diseno utilitario minimalista.',
     'toolSelector.footerLead': 'Linku Tech',
 

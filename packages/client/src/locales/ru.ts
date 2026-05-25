@@ -28,6 +28,7 @@ const dict: Dict = {
     'toolSelector.subtitle': 'Синхронизированные мультиплеерные инструменты. Создайте комнату и поделитесь ссылкой.',
     'toolSelector.standardTime': 'Местное время',
     'toolSelector.comingSoon': 'Скоро',
+    'toolSelector.joining': 'Подключение…',
     'toolSelector.footerNote': '© 2024 Linku Toolbox. Минималистичный утилитарный дизайн.',
     'toolSelector.footerLead': 'Linku Tech',
 

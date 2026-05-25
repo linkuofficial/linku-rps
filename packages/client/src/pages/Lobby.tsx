@@ -27,7 +27,7 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
     send({ type: 'create_room', bestOf: usesBestOf ? bestOf : 1, tool });
   };
   const joinRoom = () => {
-    const code = joinCode.trim().toUpperCase();
+    const code = joinCode.trim();
     if (!code) return;
     send({ type: 'join_room', roomId: code });
   };
@@ -84,11 +84,11 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
 
       <div className="bg-surface-alt border border-border p-6">
         <h2 className="text-label-sm text-on-surface-variant uppercase tracking-[0.05em] mb-4">{t('common.joinRoom')}</h2>
-        <input type="text" maxLength={6} placeholder={t('lobby.joinCodePlaceholder')} value={joinCode}
+        <input type="text" maxLength={4} inputMode="numeric" placeholder={t('lobby.joinCodePlaceholder')} value={joinCode}
           dir="ltr"
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+          onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
           onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-          className="w-full px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors mb-3" />
+          className="w-full px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors mb-3" />
         <button onClick={joinRoom} disabled={!connected || !joinCode.trim()}
           className="w-full py-3 bg-white border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {t('common.join')}</button>

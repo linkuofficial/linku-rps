@@ -17,7 +17,7 @@ export default function JoinPage() {
   const { send, connected } = useWebSocket(handleMessage);
 
   useEffect(() => {
-    if (connected && code) { send({ type: 'join_room', roomId: code.toUpperCase() }); }
+    if (connected && code) { send({ type: 'join_room', roomId: code }); }
   }, [connected, code, send]);
 
   if (state.phase === 'playing') {
