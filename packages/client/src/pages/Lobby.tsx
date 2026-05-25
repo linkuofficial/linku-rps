@@ -2,19 +2,37 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { ClientMessage } from '@rps/shared';
 import { BEST_OF_OPTIONS } from '@rps/shared';
+import type { ToolId } from '@rps/shared';
+import type { GameAction } from '../hooks/useGameState';
 
 interface Props {
   send: (msg: ClientMessage) => void;
   connected: boolean;
   error: string | null;
-  dispatch: React.Dispatch<any>;
+  dispatch: React.Dispatch<GameAction>;
+  tool: ToolId;
+  onBack: () => void;
 }
 
-export default function Lobby({ send, connected, error, dispatch }: Props) {
+const TOOL_LABELS: Record<ToolId, { title: string; subtitle: string }> = {
+  rps: { title: '猜拳', subtitle: 'Rock Paper Scissors' },
+  coin: { title: '丟銅板', subtitle: 'Coin Flip' },
+  dice: { title: '骰子', subtitle: 'Dice' },
+  wheel: { title: '輪盤', subtitle: 'Wheel' },
+  draw: { title: '抽籤', subtitle: 'Draw Lots' },
+  vote: { title: '投票', subtitle: 'Vote' },
+};
+
+export default function Lobby({ send, connected, error, dispatch, tool, onBack }: Props) {
   const [joinCode, setJoinCode] = useState('');
   const [bestOf, setBestOf] = useState(3);
 
-  const createRoom = () => { send({ type: 'create_room', bestOf }); };
+  const labels = TOOL_LABELS[tool];
+  const usesBestOf = tool === 'rps';
+
+  const createRoom = () => {
+    send({ type: 'create_room', bestOf: usesBestOf ? bestOf : 1, tool });
+  };
   const joinRoom = () => {
     const code = joinCode.trim().toUpperCase();
     if (!code) return;
@@ -23,9 +41,17 @@ export default function Lobby({ send, connected, error, dispatch }: Props) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <div className="mb-4">
+        <button
+          onClick={onBack}
+          className="text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          返回工具列表
+        </button>
+      </div>
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">猜拳</h1>
-        <p className="text-sm text-gray-400 mt-1">Rock Paper Scissors</p>
+        <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">{labels.title}</h1>
+        <p className="text-sm text-gray-400 mt-1">{labels.subtitle}</p>
       </div>
 
       {!connected && <div className="text-center text-sm text-gray-400 mb-4">連線中...</div>}
@@ -38,17 +64,28 @@ export default function Lobby({ send, connected, error, dispatch }: Props) {
 
       <div className="bg-gray-50 rounded-2xl p-6 mb-4">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">建立房間</h2>
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm text-gray-500">局數</span>
-          <div className="flex gap-1 ml-auto">
-            {BEST_OF_OPTIONS.map((n) => (
-              <button key={n} onClick={() => setBestOf(n)}
-                className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
-                  bestOf === n ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100'
-                }`}>{n}</button>
-            ))}
+        {usesBestOf && (
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm text-gray-500">局數</span>
+            <div className="flex gap-1 ml-auto">
+              {BEST_OF_OPTIONS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setBestOf(n)}
+                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${bestOf === n ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100'
+                    }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        {!usesBestOf && (
+          <p className="text-sm text-gray-500 mb-4">
+            房間建立後可由任一方操作工具，結果會即時同步給所有人。
+          </p>
+        )}
         <button onClick={createRoom} disabled={!connected}
           className="w-full py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
           建立房間</button>

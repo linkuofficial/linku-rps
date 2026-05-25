@@ -14,13 +14,19 @@ export default function JoinPage() {
 
   useEffect(() => {
     if (connected && code) { send({ type: 'join_room', roomId: code.toUpperCase() }); }
-  }, [connected, code]);
+  }, [connected, code, send]);
 
   if (state.phase === 'playing') {
     return (<div className="min-h-screen bg-white flex items-center justify-center p-4"><div className="w-full max-w-md"><Game state={state} send={send} dispatch={dispatch} /></div></div>);
   }
   if (state.phase === 'finished') {
-    return (<div className="min-h-screen bg-white flex items-center justify-center p-4"><div className="w-full max-w-md"><Finished state={state} /></div></div>);
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
+        </div>
+      </div>
+    );
   }
 
   return (

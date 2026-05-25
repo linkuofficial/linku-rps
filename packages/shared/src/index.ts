@@ -1,6 +1,18 @@
 // ===== Message Types =====
 
 export type Choice = 'rock' | 'paper' | 'scissors';
+export type CoinFace = 'heads' | 'tails';
+
+export interface WheelOption {
+  id: string;
+  label: string;
+  color: string;
+  imageUrl?: string;
+}
+
+export type DrawMode = 'pick' | 'shuffle';
+
+export type ToolId = 'rps' | 'coin' | 'dice' | 'wheel' | 'draw' | 'vote';
 
 export type RoundResult = 'a_wins' | 'b_wins' | 'draw';
 
@@ -11,6 +23,7 @@ export type PlayerSlot = 'a' | 'b';
 export interface CreateRoomMsg {
   type: 'create_room';
   bestOf: number;
+  tool: ToolId;
 }
 
 export interface JoinRoomMsg {
@@ -34,12 +47,73 @@ export interface EmojiMsg {
   emoji: string;
 }
 
+export interface ReconnectMsg {
+  type: 'reconnect';
+  roomId: string;
+  reconnectToken: string;
+}
+
+export interface RematchRequestMsg {
+  type: 'rematch_request';
+}
+
+export interface RematchResponseMsg {
+  type: 'rematch_response';
+  accept: boolean;
+}
+
+export interface CoinFlipMsg {
+  type: 'coin_flip';
+}
+
+export interface DiceRollMsg {
+  type: 'dice_roll';
+  count: number;
+  sides: number;
+}
+
+export interface WheelSpinMsg {
+  type: 'wheel_spin';
+  options: WheelOption[];
+}
+
+export interface DrawRunMsg {
+  type: 'draw_run';
+  names: string[];
+  mode: DrawMode;
+  noRepeat?: boolean;
+}
+
+export interface VoteStartMsg {
+  type: 'vote_start';
+  options: string[];
+}
+
+export interface VoteCastMsg {
+  type: 'vote_cast';
+  index: number;
+}
+
+export interface VoteEndMsg {
+  type: 'vote_end';
+}
+
 export type ClientMessage =
   | CreateRoomMsg
   | JoinRoomMsg
   | ChoiceMsg
   | ChatMsg
-  | EmojiMsg;
+  | EmojiMsg
+  | ReconnectMsg
+  | RematchRequestMsg
+  | RematchResponseMsg
+  | CoinFlipMsg
+  | DiceRollMsg
+  | WheelSpinMsg
+  | DrawRunMsg
+  | VoteStartMsg
+  | VoteCastMsg
+  | VoteEndMsg;
 
 // ===== Server -> Client Messages =====
 
@@ -47,18 +121,38 @@ export interface RoomCreatedMsg {
   type: 'room_created';
   roomId: string;
   bestOf: number;
+  tool: ToolId;
+  reconnectToken: string;
 }
 
 export interface JoinedMsg {
   type: 'joined';
   roomId: string;
   bestOf: number;
+  tool: ToolId;
+  reconnectToken: string;
 }
 
 export interface GameStartMsg {
   type: 'game_start';
   you: PlayerSlot;
   bestOf: number;
+  tool: ToolId;
+}
+
+export interface ReconnectOkMsg {
+  type: 'reconnect_ok';
+  roomId: string;
+  bestOf: number;
+  tool: ToolId;
+  you: PlayerSlot;
+  phase: 'waiting' | 'playing' | 'finished';
+  score: { a: number; b: number };
+  round: number;
+  winner: PlayerSlot | null;
+  opponentReady: boolean;
+  myChoiceSubmitted: boolean;
+  reconnectToken: string;
 }
 
 export interface OpponentReadyMsg {
@@ -96,6 +190,75 @@ export interface OpponentLeftMsg {
   type: 'opponent_left';
 }
 
+export interface RematchRequestedMsg {
+  type: 'rematch_requested';
+  from: PlayerSlot;
+}
+
+export interface RematchStatusMsg {
+  type: 'rematch_status';
+  requestedBy: PlayerSlot[];
+}
+
+export interface RematchStartedMsg {
+  type: 'rematch_started';
+  bestOf: number;
+}
+
+export interface CoinResultMsg {
+  type: 'coin_result';
+  result: CoinFace;
+  by: PlayerSlot;
+  round: number;
+  timestamp: number;
+}
+
+export interface DiceResultMsg {
+  type: 'dice_result';
+  values: number[];
+  total: number;
+  count: number;
+  sides: number;
+  by: PlayerSlot;
+  round: number;
+  timestamp: number;
+}
+
+export interface WheelResultMsg {
+  type: 'wheel_result';
+  options: WheelOption[];
+  selectedIndex: number;
+  by: PlayerSlot;
+  round: number;
+  timestamp: number;
+}
+
+export interface DrawResultMsg {
+  type: 'draw_result';
+  mode: DrawMode;
+  noRepeat: boolean;
+  sourceNames: string[];
+  orderedNames: string[];
+  pickedName: string | null;
+  remainingNames: string[];
+  by: PlayerSlot;
+  round: number;
+  timestamp: number;
+}
+
+export interface VoteUpdateMsg {
+  type: 'vote_update';
+  options: string[];
+  counts: number[];
+  votedBy: PlayerSlot[];
+  host: PlayerSlot;
+  finalized: boolean;
+  winnerIndexes: number[];
+  by: PlayerSlot;
+  round: number;
+  timestamp: number;
+}
+
 export interface ErrorMsg {
   type: 'error';
   message: string;
@@ -105,12 +268,21 @@ export type ServerMessage =
   | RoomCreatedMsg
   | JoinedMsg
   | GameStartMsg
+  | ReconnectOkMsg
   | OpponentReadyMsg
   | RoundResultMsg
   | GameOverMsg
   | ChatBroadcastMsg
   | EmojiBroadcastMsg
   | OpponentLeftMsg
+  | RematchRequestedMsg
+  | RematchStatusMsg
+  | RematchStartedMsg
+  | CoinResultMsg
+  | DiceResultMsg
+  | WheelResultMsg
+  | DrawResultMsg
+  | VoteUpdateMsg
   | ErrorMsg;
 
 // ===== Constants =====
