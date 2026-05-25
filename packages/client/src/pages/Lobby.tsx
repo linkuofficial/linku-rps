@@ -1,33 +1,26 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from '../lib/motion-lite';
 import type { ClientMessage } from '@rps/shared';
-import { BEST_OF_OPTIONS } from '@rps/shared';
 import type { ToolId } from '@rps/shared';
 import type { GameAction } from '../hooks/useGameState';
+import { useI18n } from '../i18n';
+
+const BEST_OF_OPTIONS = [1, 3, 5, 7] as const;
 
 interface Props {
   send: (msg: ClientMessage) => void;
   connected: boolean;
-  error: string | null;
+  error: { code: string; message: string } | null;
   dispatch: React.Dispatch<GameAction>;
   tool: ToolId;
-  onBack: () => void;
 }
 
-const TOOL_LABELS: Record<ToolId, { title: string; subtitle: string }> = {
-  rps: { title: '猜拳', subtitle: 'Rock Paper Scissors' },
-  coin: { title: '丟銅板', subtitle: 'Coin Flip' },
-  dice: { title: '骰子', subtitle: 'Dice' },
-  wheel: { title: '輪盤', subtitle: 'Wheel' },
-  draw: { title: '抽籤', subtitle: 'Draw Lots' },
-  vote: { title: '投票', subtitle: 'Vote' },
-};
-
-export default function Lobby({ send, connected, error, dispatch, tool, onBack }: Props) {
+export default function Lobby({ send, connected, error, dispatch, tool }: Props) {
+  const { t, toolName, toolSubtitle, translateError, locale } = useI18n();
+  const isRtl = locale === 'ar';
   const [joinCode, setJoinCode] = useState('');
   const [bestOf, setBestOf] = useState(3);
 
-  const labels = TOOL_LABELS[tool];
   const usesBestOf = tool === 'rps';
 
   const createRoom = () => {
@@ -41,38 +34,30 @@ export default function Lobby({ send, connected, error, dispatch, tool, onBack }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-      <div className="mb-4">
-        <button
-          onClick={onBack}
-          className="text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors"
-        >
-          返回工具列表
-        </button>
-      </div>
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">{labels.title}</h1>
-        <p className="text-sm text-gray-400 mt-1">{labels.subtitle}</p>
+        <h1 className="text-headline-lg-mobile sm:text-headline-lg text-on-surface">{toolName(tool)}</h1>
+        <p className="text-label-md text-on-surface-variant mt-1">{toolSubtitle(tool)}</p>
       </div>
 
-      {!connected && <div className="text-center text-sm text-gray-400 mb-4">連線中...</div>}
+      {!connected && <div className="text-center text-label-sm text-on-surface-variant mb-4">{t('app.connecting')}</div>}
 
       {error && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3 mb-4 text-center"
-          onClick={() => dispatch({ type: 'CLEAR_ERROR' })}>{error}</motion.div>
+          className="border-2 border-black bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
+          onClick={() => dispatch({ type: 'CLEAR_ERROR' })}>{translateError(error.code, error.message)}</motion.div>
       )}
 
-      <div className="bg-gray-50 rounded-2xl p-6 mb-4">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">建立房間</h2>
+      <div className="bg-surface-alt border border-border p-6 mb-4">
+        <h2 className="text-label-sm text-on-surface-variant uppercase tracking-[0.05em] mb-4">{t('common.createRoom')}</h2>
         {usesBestOf && (
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-gray-500">局數</span>
-            <div className="flex gap-1 ml-auto">
+            <span className="text-label-md text-on-surface-variant">{t('lobby.bestOf')}</span>
+            <div className={`flex gap-1 ${isRtl ? 'mr-auto' : 'ml-auto'}`}>
               {BEST_OF_OPTIONS.map((n) => (
                 <button
                   key={n}
                   onClick={() => setBestOf(n)}
-                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${bestOf === n ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100'
+                  className={`w-9 h-9 text-label-md transition-colors ${bestOf === n ? 'bg-black text-white' : 'bg-white text-on-surface border border-border hover:border-black'
                     }`}
                 >
                   {n}
@@ -82,30 +67,31 @@ export default function Lobby({ send, connected, error, dispatch, tool, onBack }
           </div>
         )}
         {!usesBestOf && (
-          <p className="text-sm text-gray-500 mb-4">
-            房間建立後可由任一方操作工具，結果會即時同步給所有人。
+          <p className="text-label-md text-on-surface-variant mb-4">
+            {t('lobby.toolSyncHint')}
           </p>
         )}
         <button onClick={createRoom} disabled={!connected}
-          className="w-full py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-          建立房間</button>
+          className="w-full py-3 bg-black text-white font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          {t('common.createRoom')}</button>
       </div>
 
       <div className="flex items-center gap-3 my-4">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-300 uppercase tracking-widest">or</span>
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-label-sm text-on-surface-variant uppercase tracking-[0.05em]">{t('common.or')}</span>
+        <div className="flex-1 h-px bg-border" />
       </div>
 
-      <div className="bg-gray-50 rounded-2xl p-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">加入房間</h2>
-        <input type="text" maxLength={6} placeholder="輸入房間代碼" value={joinCode}
+      <div className="bg-surface-alt border border-border p-6">
+        <h2 className="text-label-sm text-on-surface-variant uppercase tracking-[0.05em] mb-4">{t('common.joinRoom')}</h2>
+        <input type="text" maxLength={6} placeholder={t('lobby.joinCodePlaceholder')} value={joinCode}
+          dir="ltr"
           onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
           onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-          className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-gray-300 placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 transition-all mb-3" />
+          className="w-full px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors mb-3" />
         <button onClick={joinRoom} disabled={!connected || !joinCode.trim()}
-          className="w-full py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:border-gray-400 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-          加入</button>
+          className="w-full py-3 bg-white border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          {t('common.join')}</button>
       </div>
     </motion.div>
   );

@@ -3,13 +3,158 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #f9f9f9;
+  color: #1a1c1c;
+}
+
+html[data-locale='en'],
+html[data-locale='fr'],
+html[data-locale='es'] {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html[data-locale='zh'] {
+  font-family: 'Noto Sans SC', 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', sans-serif;
+}
+
+html[data-locale='ja'] {
+  font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+}
+
+html[data-locale='ar'] {
+  font-family: 'Noto Naskh Arabic', 'Segoe UI', Tahoma, sans-serif;
+}
+
+html[data-locale='ru'] {
+  font-family: 'Geist', 'Segoe UI', sans-serif;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 #root {
   min-height: 100vh;
+}
+
+
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.tool-selector-content {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Design System Typography */
+@layer utilities {
+  .font-locale-latin {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .font-locale-zh {
+    font-family: 'Noto Sans SC', 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', sans-serif;
+  }
+
+  .font-locale-ja {
+    font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  }
+
+  .font-locale-ar {
+    font-family: 'Noto Naskh Arabic', 'Segoe UI', Tahoma, sans-serif;
+  }
+
+  .font-locale-cyrillic {
+    font-family: 'Geist', 'Segoe UI', sans-serif;
+  }
+
+  .text-headline-xl {
+    font-size: 48px;
+    line-height: 56px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+
+  .text-headline-lg {
+    font-size: 32px;
+    line-height: 40px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .text-headline-lg-mobile {
+    font-size: 28px;
+    line-height: 36px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .text-headline-md {
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .text-body-lg {
+    font-size: 18px;
+    line-height: 28px;
+    font-weight: 400;
+  }
+
+  .text-body-md {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+  }
+
+  .text-label-md {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+
+  .text-label-sm {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+  }
+
+  .text-display-clock {
+    font-size: clamp(72px, 16vw, 180px);
+    line-height: 0.9;
+    font-weight: 700;
+    letter-spacing: -0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (max-width: 900px) {
+  .text-display-clock {
+    font-size: clamp(56px, 15vw, 120px);
+  }
+
+  .tool-selector-content {
+    gap: 22px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -29,5 +174,38 @@ body {
 
   #root {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+}
+
+@media (max-aspect-ratio: 4/3),
+(max-height: 820px) {
+  .tool-selector-main {
+    justify-content: center;
+    padding-top: 16px;
+    padding-bottom: 12px;
+  }
+
+  .tool-selector-content {
+    gap: 16px;
+  }
+
+  .tool-selector-strip {
+    padding-bottom: 0;
+  }
+}
+
+@media (max-aspect-ratio: 1/1),
+(max-height: 700px) {
+  .tool-selector-main {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .tool-selector-content {
+    gap: 12px;
+  }
+
+  .text-display-clock {
+    font-size: clamp(50px, 14vw, 92px);
   }
 }

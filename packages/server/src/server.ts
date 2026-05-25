@@ -1,13 +1,23 @@
-import express from 'express';
+import express, { type Request } from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import http from 'http';
+import {
+    getInvalidGameStateMessage,
+    getMessageRateBucket,
+    getMessageRateLimitPerSecond,
+    type MessageRateBucket,
+} from './messagePolicy.js';
+import { isRateLimited } from './rateLimit.js';
 import {
     type ClientMessage,
     type Choice,
     type CoinFace,
     type DrawMode,
+    type ErrorCode,
+    type InvalidGameStateReason,
     type PlayerSlot,
+    type ReactionPhase,
     type RoundResult,
     type ServerMessage,
     type ToolId,
@@ -16,8 +26,8 @@ import {
     VALID_CHOICES,
 } from '@rps/shared';
 
-const app = express();
-const server = http.createServer(app);
+export const app = express();
+export const server = http.createServer(app);
 
 const ALLOWED_ORIGINS = (
     process.env.ALLOWED_ORIGINS ||
@@ -27,14 +37,19 @@ const ALLOWED_ORIGINS = (
     .map((s) => s.trim());
 
 const RECONNECT_GRACE_MS = 30000;
-const TOOL_IDS: ToolId[] = ['rps', 'coin', 'dice', 'wheel', 'draw', 'vote'];
+const WS_HEARTBEAT_INTERVAL_MS = 25000;
+const WS_MAX_PAYLOAD_BYTES = 16 * 1024;
+const EXPORT_ADMIN_KEY = process.env.EXPORT_ADMIN_KEY?.trim() || null;
+const TOOL_IDS: ToolId[] = ['rps', 'coin', 'dice', 'wheel', 'draw', 'reaction'];
+const PROCESS_STARTED_AT = Date.now();
 
-const wss = new WebSocketServer({
+export const wss = new WebSocketServer({
     server,
+    maxPayload: WS_MAX_PAYLOAD_BYTES,
     verifyClient: ({ origin }, done) => {
         if (!origin) return done(true);
         if (ALLOWED_ORIGINS.includes(origin)) return done(true);
-        console.warn('Rejected origin:', origin);
+        logStructured('warn', 'ws.origin_rejected', { origin });
         done(false, 403, 'Forbidden origin');
     },
 });
@@ -66,14 +81,88 @@ interface Room {
     winner: PlayerSlot | null;
     tool: ToolId;
     rematchRequested: { a: boolean; b: boolean };
-    voteSession: { options: string[]; ballots: Partial<Record<PlayerSlot, number>> } | null;
-    voteHost: PlayerSlot | null;
+    reactionSession: {
+        phase: ReactionPhase;
+        ready: Record<PlayerSlot, boolean>;
+        greenAt: number | null;
+        countdownMs: number | null;
+        presses: Partial<Record<PlayerSlot, number>>;
+        falseStartBy: PlayerSlot | null;
+        timer: ReturnType<typeof setTimeout> | null;
+    } | null;
     drawSession: { sourceKey: string; remaining: string[] } | null;
     history: RoomHistoryEvent[];
     cleanupTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const rooms: Record<string, Room> = {};
+
+interface RuntimeMetrics {
+    wsConnectionsOpened: number;
+    wsConnectionsClosed: number;
+    wsMessagesReceived: number;
+    wsRateLimitedCloses: number;
+    wsRateLimitedRejected: number;
+    wsInvalidJsonMessages: number;
+    wsErrorEvents: number;
+    roomCreated: number;
+    roomJoined: number;
+    reconnectOk: number;
+    exportCsvSuccess: number;
+    exportCsvForbidden: number;
+    totalErrorsSent: number;
+}
+
+const runtimeMetrics: RuntimeMetrics = {
+    wsConnectionsOpened: 0,
+    wsConnectionsClosed: 0,
+    wsMessagesReceived: 0,
+    wsRateLimitedCloses: 0,
+    wsRateLimitedRejected: 0,
+    wsInvalidJsonMessages: 0,
+    wsErrorEvents: 0,
+    roomCreated: 0,
+    roomJoined: 0,
+    reconnectOk: 0,
+    exportCsvSuccess: 0,
+    exportCsvForbidden: 0,
+    totalErrorsSent: 0,
+};
+
+function logStructured(level: 'info' | 'warn' | 'error', event: string, data: Record<string, unknown> = {}) {
+    const payload = {
+        ts: new Date().toISOString(),
+        level,
+        event,
+        ...data,
+    };
+    const line = JSON.stringify(payload);
+    if (level === 'error') {
+        console.error(line);
+        return;
+    }
+    if (level === 'warn') {
+        console.warn(line);
+        return;
+    }
+    console.log(line);
+}
+
+function countActiveRooms(): number {
+    return Object.values(rooms).filter((room) => !!room.a || !!room.b).length;
+}
+
+function sendError(
+    ws: WebSocket,
+    code: ErrorCode,
+    message: string,
+    context: Record<string, unknown> = {},
+    reason?: InvalidGameStateReason,
+) {
+    runtimeMetrics.totalErrorsSent += 1;
+    logStructured('warn', 'ws.error_sent', { code, message, ...context });
+    send(ws, { type: 'error', code, message, reason });
+}
 
 function getResult(a: Choice, b: Choice): RoundResult {
     if (a === b) return 'draw';
@@ -89,14 +178,6 @@ function send(ws: WebSocket | null, msg: ServerMessage) {
 function broadcast(room: Room, msg: ServerMessage) {
     send(room.a, msg);
     send(room.b, msg);
-}
-
-function isRateLimited(timestamps: number[], maxPerSecond = 3): boolean {
-    const now = Date.now();
-    const recent = timestamps.filter((t) => now - t < 1000);
-    timestamps.length = 0;
-    timestamps.push(...recent);
-    return recent.length >= maxPerSecond;
 }
 
 function getPhase(room: Room): 'waiting' | 'playing' | 'finished' {
@@ -207,13 +288,6 @@ function sanitizeNames(names: string[]): string[] {
     return deduped;
 }
 
-function sanitizeVoteOptions(options: string[]): string[] {
-    return options
-        .slice(0, 20)
-        .map((opt) => String(opt || '').trim().slice(0, 60))
-        .filter((opt) => opt.length > 0);
-}
-
 function shuffled<T>(items: T[]): T[] {
     const out = [...items];
     for (let i = out.length - 1; i > 0; i--) {
@@ -223,18 +297,114 @@ function shuffled<T>(items: T[]): T[] {
     return out;
 }
 
-function buildVoteSummary(counts: number[]): { finalized: boolean; winnerIndexes: number[] } {
-    const maxVotes = Math.max(...counts, 0);
-    if (maxVotes <= 0) return { finalized: false, winnerIndexes: [] };
-    const winnerIndexes = counts
-        .map((count, index) => ({ count, index }))
-        .filter((entry) => entry.count === maxVotes)
-        .map((entry) => entry.index);
-    return { finalized: true, winnerIndexes };
+function oppositeSlot(slot: PlayerSlot): PlayerSlot {
+    return slot === 'a' ? 'b' : 'a';
+}
+
+function clearReactionTimer(room: Room) {
+    if (!room.reactionSession?.timer) return;
+    clearTimeout(room.reactionSession.timer);
+    room.reactionSession.timer = null;
+}
+
+function broadcastReactionState(roomId: string, room: Room, by: PlayerSlot | 'system') {
+    const reaction = room.reactionSession;
+    if (!reaction) return;
+    const readyBy = (['a', 'b'] as PlayerSlot[]).filter((slot) => reaction.ready[slot]);
+    broadcast(room, {
+        type: 'reaction_state',
+        phase: reaction.phase,
+        readyBy,
+        countdownMs: reaction.countdownMs,
+        greenAt: reaction.greenAt,
+        by,
+        round: room.round,
+        timestamp: Date.now(),
+    });
+    logEvent(roomId, room, {
+        event: 'reaction_state',
+        round: room.round,
+        actor: by === 'system' ? 'system' : by,
+        result: reaction.phase,
+        scoreA: room.score.a,
+        scoreB: room.score.b,
+        details: `ready=${readyBy.join('|') || 'none'}`,
+    });
+}
+
+function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot, winner: PlayerSlot | 'draw', falseStartBy: PlayerSlot | null) {
+    const reaction = room.reactionSession;
+    if (!reaction) return;
+    const greenAt = reaction.greenAt;
+
+    const reactionMs = {
+        a: greenAt && reaction.presses.a ? Math.max(0, reaction.presses.a - greenAt) : null,
+        b: greenAt && reaction.presses.b ? Math.max(0, reaction.presses.b - greenAt) : null,
+    };
+
+    if (winner === 'a') room.score.a += 1;
+    if (winner === 'b') room.score.b += 1;
+
+    reaction.phase = 'result';
+    reaction.ready = { a: false, b: false };
+    reaction.countdownMs = null;
+    reaction.greenAt = null;
+    clearReactionTimer(room);
+
+    broadcast(room, {
+        type: 'reaction_result',
+        winner,
+        falseStartBy,
+        reactionMs,
+        by,
+        round: room.round,
+        timestamp: Date.now(),
+    });
+
+    logEvent(roomId, room, {
+        event: 'reaction_result',
+        round: room.round,
+        actor: by,
+        result: winner,
+        scoreA: room.score.a,
+        scoreB: room.score.b,
+        details: `false_start=${falseStartBy ?? 'none'}; a=${reactionMs.a ?? 'na'}; b=${reactionMs.b ?? 'na'}`,
+    });
+
+    room.round += 1;
+}
+
+function canExportRoomHistory(req: Request, room: Room): boolean {
+    const token = String(req.query.token || '').trim();
+    if (token && (token === room.tokens.a || token === room.tokens.b)) {
+        return true;
+    }
+
+    const adminKey = String(req.query.key || '').trim();
+    if (EXPORT_ADMIN_KEY && adminKey === EXPORT_ADMIN_KEY) {
+        return true;
+    }
+
+    return false;
 }
 
 app.get('/health', (_req, res) => {
     res.json({ ok: true, rooms: Object.keys(rooms).length });
+});
+
+app.get('/metrics', (_req, res) => {
+    const uptimeSec = Math.max(1, Math.floor((Date.now() - PROCESS_STARTED_AT) / 1000));
+    const errorsPerMinute = Number(((runtimeMetrics.totalErrorsSent / uptimeSec) * 60).toFixed(4));
+
+    res.json({
+        ok: true,
+        uptimeSec,
+        wsActiveConnections: wss.clients.size,
+        roomsTotal: Object.keys(rooms).length,
+        roomsActive: countActiveRooms(),
+        errorsPerMinute,
+        counters: runtimeMetrics,
+    });
 });
 
 app.get('/export/:roomId.csv', (req, res) => {
@@ -245,6 +415,15 @@ app.get('/export/:roomId.csv', (req, res) => {
         return;
     }
 
+    if (!canExportRoomHistory(req, room)) {
+        runtimeMetrics.exportCsvForbidden += 1;
+        logStructured('warn', 'http.export_csv_forbidden', { roomId });
+        res.status(403).json({ ok: false, message: 'forbidden' });
+        return;
+    }
+
+    runtimeMetrics.exportCsvSuccess += 1;
+    logStructured('info', 'http.export_csv_success', { roomId, rows: room.history.length });
     const csv = toCsv(room.history);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${roomId}-history.csv"`);
@@ -252,16 +431,74 @@ app.get('/export/:roomId.csv', (req, res) => {
 });
 
 wss.on('connection', (ws) => {
+    runtimeMetrics.wsConnectionsOpened += 1;
+    logStructured('info', 'ws.connection_opened', {
+        activeConnections: wss.clients.size,
+        roomsActive: countActiveRooms(),
+    });
+
     let roomId: string | null = null;
     let playerSlot: PlayerSlot | null = null;
+    let isAlive = true;
+    const messageRateTimestamps: Record<MessageRateBucket, number[]> = {
+        system: [],
+        chat: [],
+        reaction: [],
+    };
+
+    ws.on('error', (err) => {
+        runtimeMetrics.wsErrorEvents += 1;
+        logStructured('error', 'ws.connection_error', {
+            roomId,
+            playerSlot,
+            message: err instanceof Error ? err.message : String(err),
+        });
+    });
+
+    ws.on('pong', () => {
+        isAlive = true;
+    });
 
     ws.on('message', (raw) => {
+        runtimeMetrics.wsMessagesReceived += 1;
         let msg: ClientMessage;
         try {
             msg = JSON.parse(raw.toString());
         } catch {
+            runtimeMetrics.wsInvalidJsonMessages += 1;
+            logStructured('warn', 'ws.invalid_json', { roomId, playerSlot });
+            sendError(ws, 'invalid_json', 'Invalid JSON payload', { roomId, playerSlot });
             return;
         }
+
+        const messageRateBucket = getMessageRateBucket(msg.type);
+        const messageRateLimit = getMessageRateLimitPerSecond(messageRateBucket);
+        if (isRateLimited(messageRateTimestamps[messageRateBucket], messageRateLimit)) {
+            if (messageRateBucket === 'system') {
+                runtimeMetrics.wsRateLimitedCloses += 1;
+                logStructured('warn', 'ws.rate_limit_exceeded_close', { roomId, playerSlot, messageRateBucket });
+                ws.close(1008, 'Rate limit exceeded');
+                return;
+            }
+
+            runtimeMetrics.wsRateLimitedRejected += 1;
+            sendError(ws, 'invalid_game_state', getInvalidGameStateMessage('rate_limit_exceeded'), {
+                roomId,
+                playerSlot,
+                messageRateBucket,
+            }, 'rate_limit_exceeded');
+            return;
+        }
+        messageRateTimestamps[messageRateBucket].push(Date.now());
+
+        const invalidGameState = (reason: InvalidGameStateReason) => {
+            sendError(ws, 'invalid_game_state', getInvalidGameStateMessage(reason), {
+                roomId,
+                playerSlot,
+                msgType: msg.type,
+                reason,
+            }, reason);
+        };
 
         switch (msg.type) {
             case 'create_room': {
@@ -283,8 +520,7 @@ wss.on('connection', (ws) => {
                     winner: null,
                     tool,
                     rematchRequested: { a: false, b: false },
-                    voteSession: null,
-                    voteHost: null,
+                    reactionSession: null,
                     drawSession: null,
                     history: [],
                     cleanupTimer: null,
@@ -300,6 +536,8 @@ wss.on('connection', (ws) => {
                 });
                 roomId = newRoomId;
                 playerSlot = 'a';
+                runtimeMetrics.roomCreated += 1;
+                logStructured('info', 'room.created', { roomId: newRoomId, tool, bestOf });
                 send(ws, {
                     type: 'room_created',
                     roomId: newRoomId,
@@ -314,11 +552,11 @@ wss.on('connection', (ws) => {
                 const id = msg.roomId.toUpperCase();
                 const room = rooms[id];
                 if (!room) {
-                    send(ws, { type: 'error', message: '找不到房間' });
+                    sendError(ws, 'room_not_found', 'Room not found', { roomId: id });
                     return;
                 }
                 if (room.tokens.b) {
-                    send(ws, { type: 'error', message: '房間已滿' });
+                    sendError(ws, 'room_full', 'Room is full', { roomId: id });
                     return;
                 }
 
@@ -330,6 +568,8 @@ wss.on('connection', (ws) => {
 
                 roomId = id;
                 playerSlot = 'b';
+                runtimeMetrics.roomJoined += 1;
+                logStructured('info', 'room.joined', { roomId: id, tool: room.tool });
 
                 send(ws, {
                     type: 'joined',
@@ -366,7 +606,7 @@ wss.on('connection', (ws) => {
                 const id = msg.roomId.toUpperCase();
                 const room = rooms[id];
                 if (!room) {
-                    send(ws, { type: 'error', message: '房間已不存在' });
+                    sendError(ws, 'room_no_longer_exists', 'Room no longer exists', { roomId: id });
                     return;
                 }
 
@@ -374,7 +614,7 @@ wss.on('connection', (ws) => {
                 if (room.tokens.a === msg.reconnectToken) slot = 'a';
                 if (room.tokens.b === msg.reconnectToken) slot = 'b';
                 if (!slot) {
-                    send(ws, { type: 'error', message: '重連驗證失敗' });
+                    sendError(ws, 'reconnect_auth_failed', 'Reconnect authentication failed', { roomId: id });
                     return;
                 }
 
@@ -393,6 +633,8 @@ wss.on('connection', (ws) => {
 
                 roomId = id;
                 playerSlot = slot;
+                runtimeMetrics.reconnectOk += 1;
+                logStructured('info', 'room.reconnect_ok', { roomId: id, slot });
 
                 const opponentSlot: PlayerSlot = slot === 'a' ? 'b' : 'a';
                 send(ws, {
@@ -414,6 +656,9 @@ wss.on('connection', (ws) => {
                     type: 'rematch_status',
                     requestedBy: (['a', 'b'] as PlayerSlot[]).filter((s) => room.rematchRequested[s]),
                 });
+                if (room.tool === 'reaction' && room.reactionSession) {
+                    broadcastReactionState(id, room, slot);
+                }
                 logEvent(id, room, {
                     event: 'player_reconnected',
                     round: room.round,
@@ -427,12 +672,27 @@ wss.on('connection', (ws) => {
             }
 
             case 'choice': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.winner) return;
-                if (room.tool !== 'rps') return;
-                if (!VALID_CHOICES.includes(msg.choice)) return;
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('room_not_ready');
+                    return;
+                }
+                if (room.winner) {
+                    invalidGameState('game_already_finished');
+                    return;
+                }
+                if (room.tool !== 'rps') {
+                    invalidGameState('choice_tool_mismatch');
+                    return;
+                }
+                if (!VALID_CHOICES.includes(msg.choice)) {
+                    invalidGameState('choice_invalid_value');
+                    return;
+                }
 
                 room.choices[playerSlot] = msg.choice;
                 const isCheat = msg.cheat === true && playerSlot === 'a';
@@ -495,10 +755,19 @@ wss.on('connection', (ws) => {
             }
 
             case 'coin_flip': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.tool !== 'coin') return;
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('room_not_ready');
+                    return;
+                }
+                if (room.tool !== 'coin') {
+                    invalidGameState('coin_tool_mismatch');
+                    return;
+                }
 
                 const result: CoinFace = Math.random() < 0.5 ? 'heads' : 'tails';
                 broadcast(room, {
@@ -522,15 +791,30 @@ wss.on('connection', (ws) => {
             }
 
             case 'dice_roll': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.tool !== 'dice') return;
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('room_not_ready');
+                    return;
+                }
+                if (room.tool !== 'dice') {
+                    invalidGameState('dice_tool_mismatch');
+                    return;
+                }
 
                 const count = Number.isInteger(msg.count) ? msg.count : 1;
                 const sides = Number.isInteger(msg.sides) ? msg.sides : 6;
-                if (count < 1 || count > 20) return;
-                if (sides < 2 || sides > 1000) return;
+                if (count < 1 || count > 20) {
+                    invalidGameState('dice_count_out_of_range');
+                    return;
+                }
+                if (sides < 2 || sides > 1000) {
+                    invalidGameState('dice_sides_out_of_range');
+                    return;
+                }
 
                 const values = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
                 const total = values.reduce((acc, n) => acc + n, 0);
@@ -559,13 +843,25 @@ wss.on('connection', (ws) => {
             }
 
             case 'wheel_spin': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.tool !== 'wheel') return;
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('room_not_ready');
+                    return;
+                }
+                if (room.tool !== 'wheel') {
+                    invalidGameState('wheel_tool_mismatch');
+                    return;
+                }
 
                 const options = sanitizeWheelOptions(msg.options);
-                if (options.length < 2) return;
+                if (options.length < 2) {
+                    invalidGameState('wheel_requires_two_options');
+                    return;
+                }
 
                 const selectedIndex = Math.floor(Math.random() * options.length);
                 broadcast(room, {
@@ -590,17 +886,29 @@ wss.on('connection', (ws) => {
             }
 
             case 'draw_run': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.tool !== 'draw') return;
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('room_not_ready');
+                    return;
+                }
+                if (room.tool !== 'draw') {
+                    invalidGameState('draw_tool_mismatch');
+                    return;
+                }
 
                 const names = sanitizeNames(msg.names);
-                if (names.length < 1) return;
+                if (names.length < 1) {
+                    invalidGameState('draw_requires_name');
+                    return;
+                }
 
                 const mode: DrawMode = msg.mode === 'shuffle' ? 'shuffle' : 'pick';
                 const noRepeat = msg.noRepeat === true;
-                let sourceNames = names;
+                const sourceNames = names;
                 let orderedNames = shuffled(names);
                 let pickedName: string | null = null;
                 let remainingNames: string[] = [];
@@ -656,159 +964,135 @@ wss.on('connection', (ws) => {
                 break;
             }
 
-            case 'vote_start': {
-                if (!roomId || !playerSlot) return;
+            case 'reaction_ready': {
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.tool !== 'vote') return;
-
-                if (room.voteHost && room.voteHost !== playerSlot) {
-                    send(room[playerSlot], { type: 'error', message: '只有主持人可以重新開票' });
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('room_not_ready');
+                    return;
+                }
+                if (room.tool !== 'reaction') {
+                    invalidGameState('reaction_ready_tool_mismatch');
                     return;
                 }
 
-                const options = sanitizeVoteOptions(msg.options);
-                if (options.length < 2) return;
-
-                if (!room.voteHost) {
-                    room.voteHost = playerSlot;
+                if (!room.reactionSession) {
+                    room.reactionSession = {
+                        phase: 'idle',
+                        ready: { a: false, b: false },
+                        greenAt: null,
+                        countdownMs: null,
+                        presses: {},
+                        falseStartBy: null,
+                        timer: null,
+                    };
                 }
-                room.voteSession = { options, ballots: {} };
-                const counts = options.map(() => 0);
-                broadcast(room, {
-                    type: 'vote_update',
-                    options,
-                    counts,
-                    votedBy: [],
-                    host: room.voteHost,
-                    finalized: false,
-                    winnerIndexes: [],
-                    by: playerSlot,
-                    round: room.round,
-                    timestamp: Date.now(),
-                });
-                logEvent(roomId, room, {
-                    event: 'vote_start',
-                    round: room.round,
-                    actor: playerSlot,
-                    result: 'ok',
-                    scoreA: null,
-                    scoreB: null,
-                    details: options.join('|'),
-                });
-                break;
-            }
 
-            case 'vote_cast': {
-                if (!roomId || !playerSlot) return;
-                const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.tool !== 'vote') return;
-                if (!room.voteSession) return;
+                const reaction = room.reactionSession;
+                const shouldReady = msg.ready === true;
 
-                const index = Number(msg.index);
-                if (!Number.isInteger(index)) return;
-                if (index < 0 || index >= room.voteSession.options.length) return;
+                if (reaction.phase === 'countdown' || reaction.phase === 'green') {
+                    invalidGameState('reaction_ready_locked');
+                    return;
+                }
 
-                room.voteSession.ballots[playerSlot] = index;
-                const counts = room.voteSession.options.map((_, i) =>
-                    (['a', 'b'] as PlayerSlot[]).reduce(
-                        (sum, slot) => sum + (room.voteSession?.ballots[slot] === i ? 1 : 0),
-                        0
-                    )
-                );
-                const votedBy = (['a', 'b'] as PlayerSlot[]).filter((slot) => room.voteSession?.ballots[slot] !== undefined);
-                const autoFinalize = votedBy.length === 2;
-                const summary = autoFinalize ? buildVoteSummary(counts) : { finalized: false, winnerIndexes: [] };
+                reaction.ready[playerSlot] = shouldReady;
+                reaction.phase = 'idle';
+                reaction.presses = {};
+                reaction.greenAt = null;
+                reaction.countdownMs = null;
+                reaction.falseStartBy = null;
 
-                broadcast(room, {
-                    type: 'vote_update',
-                    options: room.voteSession.options,
-                    counts,
-                    votedBy,
-                    host: room.voteHost ?? playerSlot,
-                    finalized: summary.finalized,
-                    winnerIndexes: summary.winnerIndexes,
-                    by: playerSlot,
-                    round: room.round,
-                    timestamp: Date.now(),
-                });
-                logEvent(roomId, room, {
-                    event: 'vote_cast',
-                    round: room.round,
-                    actor: playerSlot,
-                    result: room.voteSession.options[index],
-                    scoreA: null,
-                    scoreB: null,
-                    details: `index=${index}; counts=${counts.join('|')}`,
-                });
+                broadcastReactionState(roomId, room, playerSlot);
 
-                if (autoFinalize) {
-                    const resultLabel = summary.winnerIndexes.length > 1 ? 'tie' : room.voteSession.options[summary.winnerIndexes[0]];
-                    logEvent(roomId, room, {
-                        event: 'vote_end',
-                        round: room.round,
-                        actor: 'system',
-                        result: resultLabel ?? 'none',
-                        scoreA: null,
-                        scoreB: null,
-                        details: `winners=${summary.winnerIndexes.join('|')}`,
-                    });
-                    room.round++;
+                if (reaction.ready.a && reaction.ready.b) {
+                    const reactionRoomId = roomId;
+                    const delay = 1200 + Math.floor(Math.random() * 2600);
+                    reaction.phase = 'countdown';
+                    reaction.countdownMs = delay;
+                    reaction.greenAt = Date.now() + delay;
+
+                    broadcastReactionState(roomId, room, 'system');
+
+                    clearReactionTimer(room);
+                    reaction.timer = setTimeout(() => {
+                        const current = rooms[reactionRoomId];
+                        if (!current || current.tool !== 'reaction' || !current.reactionSession) return;
+                        if (current.reactionSession.phase !== 'countdown') return;
+
+                        current.reactionSession.phase = 'green';
+                        current.reactionSession.countdownMs = 0;
+                        broadcastReactionState(reactionRoomId, current, 'system');
+                    }, delay);
                 }
                 break;
             }
 
-            case 'vote_end': {
-                if (!roomId || !playerSlot) return;
+            case 'reaction_press': {
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
-                if (room.tool !== 'vote') return;
-                if (!room.voteSession || !room.voteHost) return;
-                if (room.voteHost !== playerSlot) {
-                    send(room[playerSlot], { type: 'error', message: '只有主持人可以結束投票' });
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('room_not_ready');
+                    return;
+                }
+                if (room.tool !== 'reaction' || !room.reactionSession) {
+                    invalidGameState('reaction_press_tool_mismatch');
                     return;
                 }
 
-                const counts = room.voteSession.options.map((_, i) =>
-                    (['a', 'b'] as PlayerSlot[]).reduce(
-                        (sum, slot) => sum + (room.voteSession?.ballots[slot] === i ? 1 : 0),
-                        0
-                    )
-                );
-                const votedBy = (['a', 'b'] as PlayerSlot[]).filter((slot) => room.voteSession?.ballots[slot] !== undefined);
-                const summary = buildVoteSummary(counts);
+                const reaction = room.reactionSession;
+                if (reaction.phase === 'result') {
+                    invalidGameState('reaction_round_ended');
+                    return;
+                }
 
-                broadcast(room, {
-                    type: 'vote_update',
-                    options: room.voteSession.options,
-                    counts,
-                    votedBy,
-                    host: room.voteHost,
-                    finalized: true,
-                    winnerIndexes: summary.winnerIndexes,
-                    by: playerSlot,
-                    round: room.round,
-                    timestamp: Date.now(),
-                });
+                if (reaction.phase === 'countdown') {
+                    reaction.falseStartBy = playerSlot;
+                    reaction.presses[playerSlot] = Date.now();
+                    finalizeReactionRound(roomId, room, playerSlot, oppositeSlot(playerSlot), playerSlot);
+                    break;
+                }
 
-                logEvent(roomId, room, {
-                    event: 'vote_end',
-                    round: room.round,
-                    actor: playerSlot,
-                    result: summary.winnerIndexes.length > 1 ? 'tie' : room.voteSession.options[summary.winnerIndexes[0]] ?? 'none',
-                    scoreA: null,
-                    scoreB: null,
-                    details: `manual; winners=${summary.winnerIndexes.join('|')}`,
-                });
-                room.round++;
+                if (reaction.phase !== 'green') {
+                    invalidGameState('reaction_not_green');
+                    return;
+                }
+                if (reaction.presses[playerSlot]) {
+                    invalidGameState('reaction_already_pressed');
+                    return;
+                }
+
+                const now = Date.now();
+                reaction.presses[playerSlot] = now;
+
+                const other = oppositeSlot(playerSlot);
+                const otherPressed = reaction.presses[other];
+                if (!otherPressed) {
+                    finalizeReactionRound(roomId, room, playerSlot, playerSlot, null);
+                    break;
+                }
+
+                const winner = now === otherPressed ? 'draw' : now < otherPressed ? playerSlot : other;
+                finalizeReactionRound(roomId, room, playerSlot, winner, null);
                 break;
             }
 
             case 'rematch_request': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.winner || !room.a || !room.b) return;
+                if (!room || !room.winner || !room.a || !room.b) {
+                    invalidGameState('rematch_request_invalid_state');
+                    return;
+                }
 
                 room.rematchRequested[playerSlot] = true;
                 send(playerSlot === 'a' ? room.b : room.a, { type: 'rematch_requested', from: playerSlot });
@@ -817,14 +1101,14 @@ wss.on('connection', (ws) => {
                 broadcast(room, { type: 'rematch_status', requestedBy });
 
                 if (room.rematchRequested.a && room.rematchRequested.b) {
+                    clearReactionTimer(room);
                     room.choices = {};
                     room.score = { a: 0, b: 0 };
                     room.round = 1;
                     room.winner = null;
                     room.cheatEnabled = false;
                     room.rematchRequested = { a: false, b: false };
-                    room.voteSession = null;
-                    room.voteHost = null;
+                    room.reactionSession = null;
                     room.drawSession = null;
                     broadcast(room, { type: 'rematch_started', bestOf: room.bestOf });
                     logEvent(roomId, room, {
@@ -841,9 +1125,15 @@ wss.on('connection', (ws) => {
             }
 
             case 'rematch_response': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.winner || !room.a || !room.b) return;
+                if (!room || !room.winner || !room.a || !room.b) {
+                    invalidGameState('rematch_response_invalid_state');
+                    return;
+                }
 
                 if (msg.accept) {
                     room.rematchRequested[playerSlot] = true;
@@ -855,14 +1145,14 @@ wss.on('connection', (ws) => {
                 broadcast(room, { type: 'rematch_status', requestedBy });
 
                 if (room.rematchRequested.a && room.rematchRequested.b) {
+                    clearReactionTimer(room);
                     room.choices = {};
                     room.score = { a: 0, b: 0 };
                     room.round = 1;
                     room.winner = null;
                     room.cheatEnabled = false;
                     room.rematchRequested = { a: false, b: false };
-                    room.voteSession = null;
-                    room.voteHost = null;
+                    room.reactionSession = null;
                     room.drawSession = null;
                     broadcast(room, { type: 'rematch_started', bestOf: room.bestOf });
                     logEvent(roomId, room, {
@@ -879,12 +1169,24 @@ wss.on('connection', (ws) => {
             }
 
             case 'chat': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('chat_room_not_ready');
+                    return;
+                }
                 const text = String(msg.text || '').trim().slice(0, 100);
-                if (!text) return;
-                if (isRateLimited(room.chatTimestamps[playerSlot])) return;
+                if (!text) {
+                    invalidGameState('chat_empty');
+                    return;
+                }
+                if (isRateLimited(room.chatTimestamps[playerSlot])) {
+                    invalidGameState('chat_rate_limited');
+                    return;
+                }
                 room.chatTimestamps[playerSlot].push(Date.now());
                 broadcast(room, {
                     type: 'chat_broadcast',
@@ -896,25 +1198,61 @@ wss.on('connection', (ws) => {
             }
 
             case 'emoji': {
-                if (!roomId || !playerSlot) return;
+                if (!roomId || !playerSlot) {
+                    sendError(ws, 'not_authenticated', 'Join or create a room first', { roomId, playerSlot });
+                    return;
+                }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) return;
+                if (!room || !room.a || !room.b) {
+                    invalidGameState('emoji_room_not_ready');
+                    return;
+                }
                 const emoji = String(msg.emoji || '');
-                if (!emoji || emoji.length > 4) return;
-                if (isRateLimited(room.chatTimestamps[playerSlot])) return;
+                if (!emoji || emoji.length > 4) {
+                    invalidGameState('emoji_invalid_payload');
+                    return;
+                }
+                if (isRateLimited(room.chatTimestamps[playerSlot])) {
+                    invalidGameState('emoji_rate_limited');
+                    return;
+                }
                 room.chatTimestamps[playerSlot].push(Date.now());
                 broadcast(room, { type: 'emoji_broadcast', from: playerSlot, emoji });
                 break;
+            }
+
+            default: {
+                sendError(ws, 'invalid_message_type', 'Unsupported message type', {
+                    roomId,
+                    playerSlot,
+                    msgType: (msg as { type?: unknown }).type,
+                });
+                return;
             }
         }
     });
 
     const pingInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) ws.ping();
-    }, 25000);
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!isAlive) {
+            ws.terminate();
+            return;
+        }
+        isAlive = false;
+        ws.ping();
+    }, WS_HEARTBEAT_INTERVAL_MS);
 
     ws.on('close', () => {
+        runtimeMetrics.wsConnectionsClosed += 1;
         clearInterval(pingInterval);
+
+        logStructured('info', 'ws.connection_closed', {
+            roomId,
+            playerSlot,
+            activeConnections: wss.clients.size,
+            roomsActive: countActiveRooms(),
+        });
+
         if (!roomId || !playerSlot || !rooms[roomId]) return;
 
         const room = rooms[roomId];
@@ -940,4 +1278,14 @@ wss.on('connection', (ws) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(Number(PORT), '0.0.0.0', () => console.log(`Server running on :${PORT}`));
+server.on('error', (err) => {
+    logStructured('error', 'http.server_error', {
+        message: err instanceof Error ? err.message : String(err),
+    });
+});
+
+if (process.env.NODE_ENV !== 'test') {
+    server.listen(Number(PORT), '0.0.0.0', () => {
+        logStructured('info', 'server.started', { port: Number(PORT) });
+    });
+}

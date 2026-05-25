@@ -1,11 +1,15 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useGameState } from './hooks/useGameState';
-import Lobby from './pages/Lobby';
-import Waiting from './pages/Waiting';
-import Game from './pages/Game';
-import Finished from './pages/Finished';
-import ToolSelector from './pages/ToolSelector';
+import LanguageSwitcherCompact from './components/LanguageSwitcherCompact';
+import Icon from './components/Icon';
+import { useI18n } from './i18n';
+
+const Lobby = lazy(() => import('./pages/Lobby'));
+const Waiting = lazy(() => import('./pages/Waiting'));
+const Game = lazy(() => import('./pages/Game'));
+const Finished = lazy(() => import('./pages/Finished'));
+const ToolSelector = lazy(() => import('./pages/ToolSelector'));
 
 const RECONNECT_STORAGE_KEY = 'linku-rps-reconnect';
 
@@ -15,6 +19,7 @@ interface ReconnectSnapshot {
 }
 
 export default function App() {
+  const { t } = useI18n();
   const { state, dispatch, handleMessage } = useGameState();
   const { send, connected, connectionState, reconnectAttempt, reconnectNow } = useWebSocket(
     handleMessage,
@@ -61,47 +66,70 @@ export default function App() {
     }
   }, [state.phase, state.reconnectToken, state.roomId]);
 
+  const pageFallback = <div className="h-48 border border-border bg-surface-alt" aria-hidden="true" />;
+  const isToolSelector = state.phase === 'tool_select';
+
   return (
-    <div className="min-h-[100dvh] bg-white flex items-start sm:items-center justify-center p-3 sm:p-4">
-      <div className="w-full max-w-md pt-2 sm:pt-0">
-        {connectionState !== 'connected' && (
-          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 flex items-center justify-between gap-2">
-            <span>
-              {connectionState === 'connecting' && '連線中...'}
-              {connectionState === 'reconnecting' && `重連中（第 ${reconnectAttempt} 次）`}
-              {connectionState === 'disconnected' && '連線已中斷'}
-            </span>
-            <button
-              onClick={reconnectNow}
-              className="rounded-lg bg-amber-100 px-2 py-1 font-medium text-amber-900 hover:bg-amber-200 transition-colors"
-            >
-              立即重連
-            </button>
+    <div className={`min-h-[100dvh] bg-surface ${isToolSelector ? 'px-0' : 'flex items-start sm:items-center justify-center p-4 sm:p-6'}`}>
+      <div className={`w-full ${isToolSelector ? 'min-h-[100dvh]' : 'max-w-md pt-2 sm:pt-0'}`}>
+        {!isToolSelector && (
+          <div className="mb-3 flex items-center justify-between">
+            {state.phase === 'lobby' ? (
+              <button
+                onClick={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
+                className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
+              >
+                <Icon name="arrow_back" className="text-[20px]" />
+              </button>
+            ) : <div />}
+            <LanguageSwitcherCompact />
           </div>
         )}
 
-        {state.phase === 'tool_select' && (
-          <ToolSelector onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })} />
+        {connectionState !== 'connected' && (
+          <div className="pointer-events-none fixed bottom-3 left-3 right-3 z-40 sm:bottom-5 sm:left-5 sm:right-auto sm:w-[min(26rem,calc(100vw-2.5rem))]">
+            <div
+              className="pointer-events-auto border border-border bg-surface-alt/95 px-3 py-2 text-label-sm text-on-surface shadow-lg backdrop-blur-sm flex items-center justify-between gap-2"
+              aria-live="polite"
+            >
+              <span className="truncate">
+                {connectionState === 'connecting' && t('app.connecting')}
+                {connectionState === 'reconnecting' && t('app.reconnecting', { n: reconnectAttempt })}
+                {connectionState === 'disconnected' && t('app.disconnected')}
+              </span>
+              <button
+                onClick={reconnectNow}
+                className="shrink-0 px-2 py-1 font-medium text-on-surface hover:underline transition-colors"
+              >
+                {t('app.reconnectNow')}
+              </button>
+            </div>
+          </div>
         )}
-        {state.phase === 'lobby' && state.tool && (
-          <Lobby
-            send={send}
-            connected={connected}
-            error={state.error}
-            dispatch={dispatch}
-            tool={state.tool}
-            onBack={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
-          />
-        )}
-        {state.phase === 'waiting' && (
-          <Waiting roomId={state.roomId!} bestOf={state.bestOf} tool={state.tool ?? 'rps'} />
-        )}
-        {state.phase === 'playing' && (
-          <Game state={state} send={send} dispatch={dispatch} />
-        )}
-        {state.phase === 'finished' && (
-          <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
-        )}
+
+        <Suspense fallback={pageFallback}>
+          {isToolSelector && (
+            <ToolSelector onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })} />
+          )}
+          {state.phase === 'lobby' && state.tool && (
+            <Lobby
+              send={send}
+              connected={connected}
+              error={state.error}
+              dispatch={dispatch}
+              tool={state.tool}
+            />
+          )}
+          {state.phase === 'waiting' && (
+            <Waiting roomId={state.roomId!} bestOf={state.bestOf} tool={state.tool ?? 'rps'} />
+          )}
+          {state.phase === 'playing' && (
+            <Game state={state} send={send} dispatch={dispatch} />
+          )}
+          {state.phase === 'finished' && (
+            <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
+          )}
+        </Suspense>
       </div>
     </div>
   );

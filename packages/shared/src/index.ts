@@ -12,11 +12,52 @@ export interface WheelOption {
 
 export type DrawMode = 'pick' | 'shuffle';
 
-export type ToolId = 'rps' | 'coin' | 'dice' | 'wheel' | 'draw' | 'vote';
+export type ToolId = 'rps' | 'coin' | 'dice' | 'wheel' | 'draw' | 'reaction';
+export type ReactionPhase = 'idle' | 'countdown' | 'green' | 'result';
 
 export type RoundResult = 'a_wins' | 'b_wins' | 'draw';
 
 export type PlayerSlot = 'a' | 'b';
+
+export type ErrorCode =
+  | 'invalid_json'
+  | 'invalid_message_type'
+  | 'invalid_game_state'
+  | 'not_authenticated'
+  | 'room_not_found'
+  | 'room_full'
+  | 'room_no_longer_exists'
+  | 'reconnect_auth_failed'
+  | 'opponent_disconnected';
+
+export type InvalidGameStateReason =
+  | 'rate_limit_exceeded'
+  | 'room_not_ready'
+  | 'game_already_finished'
+  | 'choice_tool_mismatch'
+  | 'choice_invalid_value'
+  | 'coin_tool_mismatch'
+  | 'dice_tool_mismatch'
+  | 'dice_count_out_of_range'
+  | 'dice_sides_out_of_range'
+  | 'wheel_tool_mismatch'
+  | 'wheel_requires_two_options'
+  | 'draw_tool_mismatch'
+  | 'draw_requires_name'
+  | 'reaction_ready_tool_mismatch'
+  | 'reaction_ready_locked'
+  | 'reaction_press_tool_mismatch'
+  | 'reaction_round_ended'
+  | 'reaction_not_green'
+  | 'reaction_already_pressed'
+  | 'rematch_request_invalid_state'
+  | 'rematch_response_invalid_state'
+  | 'chat_room_not_ready'
+  | 'chat_empty'
+  | 'chat_rate_limited'
+  | 'emoji_room_not_ready'
+  | 'emoji_invalid_payload'
+  | 'emoji_rate_limited';
 
 // ===== Client -> Server Messages =====
 
@@ -84,18 +125,13 @@ export interface DrawRunMsg {
   noRepeat?: boolean;
 }
 
-export interface VoteStartMsg {
-  type: 'vote_start';
-  options: string[];
+export interface ReactionReadyMsg {
+  type: 'reaction_ready';
+  ready: boolean;
 }
 
-export interface VoteCastMsg {
-  type: 'vote_cast';
-  index: number;
-}
-
-export interface VoteEndMsg {
-  type: 'vote_end';
+export interface ReactionPressMsg {
+  type: 'reaction_press';
 }
 
 export type ClientMessage =
@@ -111,9 +147,8 @@ export type ClientMessage =
   | DiceRollMsg
   | WheelSpinMsg
   | DrawRunMsg
-  | VoteStartMsg
-  | VoteCastMsg
-  | VoteEndMsg;
+  | ReactionReadyMsg
+  | ReactionPressMsg;
 
 // ===== Server -> Client Messages =====
 
@@ -246,14 +281,22 @@ export interface DrawResultMsg {
   timestamp: number;
 }
 
-export interface VoteUpdateMsg {
-  type: 'vote_update';
-  options: string[];
-  counts: number[];
-  votedBy: PlayerSlot[];
-  host: PlayerSlot;
-  finalized: boolean;
-  winnerIndexes: number[];
+export interface ReactionStateMsg {
+  type: 'reaction_state';
+  phase: ReactionPhase;
+  readyBy: PlayerSlot[];
+  countdownMs: number | null;
+  greenAt: number | null;
+  by: PlayerSlot | 'system';
+  round: number;
+  timestamp: number;
+}
+
+export interface ReactionResultMsg {
+  type: 'reaction_result';
+  winner: PlayerSlot | 'draw';
+  falseStartBy: PlayerSlot | null;
+  reactionMs: { a: number | null; b: number | null };
   by: PlayerSlot;
   round: number;
   timestamp: number;
@@ -261,7 +304,9 @@ export interface VoteUpdateMsg {
 
 export interface ErrorMsg {
   type: 'error';
+  code: ErrorCode;
   message: string;
+  reason?: InvalidGameStateReason;
 }
 
 export type ServerMessage =
@@ -282,7 +327,8 @@ export type ServerMessage =
   | DiceResultMsg
   | WheelResultMsg
   | DrawResultMsg
-  | VoteUpdateMsg
+  | ReactionStateMsg
+  | ReactionResultMsg
   | ErrorMsg;
 
 // ===== Constants =====

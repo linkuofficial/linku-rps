@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '../lib/motion-lite';
 import type { PlayerSlot } from '@rps/shared';
 import type { EmojiFloat } from '../hooks/useGameState';
 

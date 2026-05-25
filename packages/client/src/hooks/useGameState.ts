@@ -1,5 +1,5 @@
-import { useReducer, useCallback } from 'react';
-import type { Choice, CoinFace, DrawMode, PlayerSlot, ServerMessage, ToolId, WheelOption } from '@rps/shared';
+﻿import { useReducer, useCallback } from 'react';
+import type { Choice, CoinFace, DrawMode, ErrorCode, InvalidGameStateReason, PlayerSlot, ReactionPhase, ServerMessage, ToolId, WheelOption } from '@rps/shared';
 
 export type GamePhase = 'tool_select' | 'lobby' | 'waiting' | 'playing' | 'finished';
 
@@ -18,9 +18,9 @@ export interface EmojiFloat {
 export interface ResultHistoryEntry {
     roomId: string;
     tool: ToolId;
-    event: 'rps_round' | 'coin_flip' | 'dice_roll' | 'wheel_spin' | 'draw_pick' | 'draw_shuffle' | 'vote_start' | 'vote_cast' | 'vote_end';
+    event: 'rps_round' | 'coin_flip' | 'dice_roll' | 'wheel_spin' | 'draw_pick' | 'draw_shuffle' | 'reaction_state' | 'reaction_result';
     round: number;
-    actor: PlayerSlot;
+    actor: PlayerSlot | 'system';
     result: string;
     scoreA: number | null;
     scoreB: number | null;
@@ -38,6 +38,7 @@ export interface GameState {
     round: number;
     score: { a: number; b: number };
     myChoice: Choice | null;
+    myChoiceSubmitted: boolean;
     opponentReady: boolean;
     lastResult: { choices: { a: Choice; b: Choice }; result: 'a_wins' | 'b_wins' | 'draw' } | null;
     winner: PlayerSlot | null;
@@ -45,13 +46,24 @@ export interface GameState {
     diceResult: { values: number[]; total: number; count: number; sides: number; by: PlayerSlot; round: number; timestamp: number } | null;
     wheelResult: { options: WheelOption[]; selectedIndex: number; by: PlayerSlot; round: number; timestamp: number } | null;
     drawResult: { mode: DrawMode; noRepeat: boolean; sourceNames: string[]; orderedNames: string[]; pickedName: string | null; remainingNames: string[]; by: PlayerSlot; round: number; timestamp: number } | null;
-    voteState: { options: string[]; counts: number[]; votedBy: PlayerSlot[]; host: PlayerSlot; finalized: boolean; winnerIndexes: number[]; by: PlayerSlot; round: number; timestamp: number } | null;
+    reactionState: {
+        phase: ReactionPhase;
+        readyBy: PlayerSlot[];
+        countdownMs: number | null;
+        greenAt: number | null;
+        falseStartBy: PlayerSlot | null;
+        winner: PlayerSlot | 'draw' | null;
+        reactionMs: { a: number | null; b: number | null };
+        by: PlayerSlot | 'system';
+        round: number;
+        timestamp: number;
+    } | null;
     history: ResultHistoryEntry[];
     chat: ChatEntry[];
     emojis: EmojiFloat[];
     rematchRequestedByMe: boolean;
     rematchRequestedByOpponent: boolean;
-    error: string | null;
+    error: { code: ErrorCode; message: string; reason?: InvalidGameStateReason } | null;
 }
 
 type Action =
@@ -116,13 +128,20 @@ type Action =
         timestamp: number;
     }
     | {
-        type: 'VOTE_UPDATE';
-        options: string[];
-        counts: number[];
-        votedBy: PlayerSlot[];
-        host: PlayerSlot;
-        finalized: boolean;
-        winnerIndexes: number[];
+        type: 'REACTION_STATE';
+        phase: ReactionPhase;
+        readyBy: PlayerSlot[];
+        countdownMs: number | null;
+        greenAt: number | null;
+        by: PlayerSlot | 'system';
+        round: number;
+        timestamp: number;
+    }
+    | {
+        type: 'REACTION_RESULT';
+        winner: PlayerSlot | 'draw';
+        falseStartBy: PlayerSlot | null;
+        reactionMs: { a: number | null; b: number | null };
         by: PlayerSlot;
         round: number;
         timestamp: number;
@@ -134,7 +153,7 @@ type Action =
     | { type: 'REMATCH_STATUS'; requestedBy: PlayerSlot[] }
     | { type: 'REMATCH_STARTED'; bestOf: number }
     | { type: 'OPPONENT_LEFT' }
-    | { type: 'ERROR'; message: string }
+    | { type: 'ERROR'; code: ErrorCode; message: string; reason?: InvalidGameStateReason }
     | { type: 'CLEAR_ERROR' };
 
 export type GameAction = Action;
@@ -149,6 +168,7 @@ const initialState: GameState = {
     round: 1,
     score: { a: 0, b: 0 },
     myChoice: null,
+    myChoiceSubmitted: false,
     opponentReady: false,
     lastResult: null,
     winner: null,
@@ -156,7 +176,7 @@ const initialState: GameState = {
     diceResult: null,
     wheelResult: null,
     drawResult: null,
-    voteState: null,
+    reactionState: null,
     history: [],
     chat: [],
     emojis: [],
@@ -173,6 +193,7 @@ function resetForNewMatch(state: GameState, bestOf: number): GameState {
         round: 1,
         score: { a: 0, b: 0 },
         myChoice: null,
+        myChoiceSubmitted: false,
         opponentReady: false,
         lastResult: null,
         winner: null,
@@ -180,7 +201,7 @@ function resetForNewMatch(state: GameState, bestOf: number): GameState {
         diceResult: null,
         wheelResult: null,
         drawResult: null,
-        voteState: null,
+        reactionState: null,
         rematchRequestedByMe: false,
         rematchRequestedByOpponent: false,
         error: null,
@@ -190,16 +211,9 @@ function resetForNewMatch(state: GameState, bestOf: number): GameState {
 function reducer(state: GameState, action: Action): GameState {
     switch (action.type) {
         case 'SELECT_TOOL':
-            return {
-                ...state,
-                phase: 'lobby',
-                tool: action.tool,
-                error: null,
-            };
+            return { ...state, phase: 'lobby', tool: action.tool, error: null };
         case 'BACK_TO_TOOL_SELECT':
-            return {
-                ...initialState,
-            };
+            return { ...initialState };
         case 'ROOM_CREATED':
             return {
                 ...state,
@@ -208,6 +222,7 @@ function reducer(state: GameState, action: Action): GameState {
                 bestOf: action.bestOf,
                 tool: action.tool,
                 reconnectToken: action.reconnectToken,
+                myChoiceSubmitted: false,
                 history: [],
                 error: null,
             };
@@ -218,15 +233,12 @@ function reducer(state: GameState, action: Action): GameState {
                 bestOf: action.bestOf,
                 tool: action.tool,
                 reconnectToken: action.reconnectToken,
+                myChoiceSubmitted: false,
                 history: [],
                 error: null,
             };
         case 'GAME_START':
-            return {
-                ...resetForNewMatch(state, action.bestOf),
-                mySlot: action.you,
-                tool: action.tool,
-            };
+            return { ...resetForNewMatch(state, action.bestOf), mySlot: action.you, tool: action.tool };
         case 'RECONNECT_OK':
             return {
                 ...state,
@@ -240,6 +252,7 @@ function reducer(state: GameState, action: Action): GameState {
                 round: action.round,
                 winner: action.winner,
                 myChoice: null,
+                myChoiceSubmitted: action.myChoiceSubmitted,
                 opponentReady: action.opponentReady,
                 rematchRequestedByMe: false,
                 rematchRequestedByOpponent: false,
@@ -247,7 +260,7 @@ function reducer(state: GameState, action: Action): GameState {
         case 'OPPONENT_READY':
             return { ...state, opponentReady: true };
         case 'CHOICE_MADE':
-            return { ...state, myChoice: action.choice, opponentReady: false };
+            return { ...state, myChoice: action.choice, myChoiceSubmitted: true, opponentReady: false };
         case 'ROUND_RESULT':
             return {
                 ...state,
@@ -256,145 +269,112 @@ function reducer(state: GameState, action: Action): GameState {
                 diceResult: null,
                 wheelResult: null,
                 drawResult: null,
-                voteState: null,
+                reactionState: null,
                 score: action.score,
                 round: action.round + 1,
                 myChoice: null,
+                myChoiceSubmitted: false,
                 opponentReady: false,
                 history: state.roomId
-                    ? [
-                        ...state.history,
-                        {
-                            roomId: state.roomId,
-                            tool: state.tool ?? 'rps',
-                            event: 'rps_round',
-                            round: action.round,
-                            actor: state.mySlot ?? 'a',
-                            result: action.result,
-                            scoreA: action.score.a,
-                            scoreB: action.score.b,
-                            timestamp: Date.now(),
-                            details: `${action.choices.a} vs ${action.choices.b}`,
-                        },
-                    ]
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'rps',
+                        event: 'rps_round',
+                        round: action.round,
+                        actor: state.mySlot ?? 'a',
+                        result: action.result,
+                        scoreA: action.score.a,
+                        scoreB: action.score.b,
+                        timestamp: Date.now(),
+                        details: `${action.choices.a} vs ${action.choices.b}`,
+                    }]
                     : state.history,
             };
         case 'GAME_OVER':
-            return {
-                ...state,
-                phase: 'finished',
-                winner: action.winner,
-                rematchRequestedByMe: false,
-                rematchRequestedByOpponent: false,
-            };
+            return { ...state, phase: 'finished', winner: action.winner, rematchRequestedByMe: false, rematchRequestedByOpponent: false };
         case 'COIN_RESULT':
             return {
                 ...state,
-                coinResult: {
-                    result: action.result,
-                    by: action.by,
-                    round: action.round,
-                    timestamp: action.timestamp,
-                },
+                coinResult: { result: action.result, by: action.by, round: action.round, timestamp: action.timestamp },
                 diceResult: null,
                 wheelResult: null,
                 drawResult: null,
-                voteState: null,
+                reactionState: null,
                 lastResult: null,
                 myChoice: null,
+                myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [
-                        ...state.history,
-                        {
-                            roomId: state.roomId,
-                            tool: state.tool ?? 'coin',
-                            event: 'coin_flip',
-                            round: action.round,
-                            actor: action.by,
-                            result: action.result,
-                            scoreA: null,
-                            scoreB: null,
-                            timestamp: action.timestamp,
-                            details: action.result,
-                        },
-                    ]
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'coin',
+                        event: 'coin_flip',
+                        round: action.round,
+                        actor: action.by,
+                        result: action.result,
+                        scoreA: null,
+                        scoreB: null,
+                        timestamp: action.timestamp,
+                        details: action.result,
+                    }]
                     : state.history,
             };
         case 'DICE_RESULT':
             return {
                 ...state,
-                diceResult: {
-                    values: action.values,
-                    total: action.total,
-                    count: action.count,
-                    sides: action.sides,
-                    by: action.by,
-                    round: action.round,
-                    timestamp: action.timestamp,
-                },
+                diceResult: { values: action.values, total: action.total, count: action.count, sides: action.sides, by: action.by, round: action.round, timestamp: action.timestamp },
                 coinResult: null,
                 wheelResult: null,
                 drawResult: null,
-                voteState: null,
+                reactionState: null,
                 lastResult: null,
                 myChoice: null,
+                myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [
-                        ...state.history,
-                        {
-                            roomId: state.roomId,
-                            tool: state.tool ?? 'dice',
-                            event: 'dice_roll',
-                            round: action.round,
-                            actor: action.by,
-                            result: String(action.total),
-                            scoreA: null,
-                            scoreB: null,
-                            timestamp: action.timestamp,
-                            details: `${action.count}d${action.sides} => [${action.values.join(',')}]`,
-                        },
-                    ]
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'dice',
+                        event: 'dice_roll',
+                        round: action.round,
+                        actor: action.by,
+                        result: String(action.total),
+                        scoreA: null,
+                        scoreB: null,
+                        timestamp: action.timestamp,
+                        details: `${action.count}d${action.sides} => [${action.values.join(',')}]`,
+                    }]
                     : state.history,
             };
         case 'WHEEL_RESULT': {
             const selected = action.options[action.selectedIndex];
             return {
                 ...state,
-                wheelResult: {
-                    options: action.options,
-                    selectedIndex: action.selectedIndex,
-                    by: action.by,
-                    round: action.round,
-                    timestamp: action.timestamp,
-                },
+                wheelResult: { options: action.options, selectedIndex: action.selectedIndex, by: action.by, round: action.round, timestamp: action.timestamp },
                 diceResult: null,
                 coinResult: null,
                 drawResult: null,
-                voteState: null,
+                reactionState: null,
                 lastResult: null,
                 myChoice: null,
+                myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [
-                        ...state.history,
-                        {
-                            roomId: state.roomId,
-                            tool: state.tool ?? 'wheel',
-                            event: 'wheel_spin',
-                            round: action.round,
-                            actor: action.by,
-                            result: selected?.label ?? 'unknown',
-                            scoreA: null,
-                            scoreB: null,
-                            timestamp: action.timestamp,
-                            details: JSON.stringify(action.options),
-                        },
-                    ]
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'wheel',
+                        event: 'wheel_spin',
+                        round: action.round,
+                        actor: action.by,
+                        result: selected?.label ?? 'unknown',
+                        scoreA: null,
+                        scoreB: null,
+                        timestamp: action.timestamp,
+                        details: JSON.stringify(action.options),
+                    }]
                     : state.history,
             };
         }
@@ -412,42 +392,41 @@ function reducer(state: GameState, action: Action): GameState {
                     round: action.round,
                     timestamp: action.timestamp,
                 },
-                voteState: null,
+                reactionState: null,
                 wheelResult: null,
                 diceResult: null,
                 coinResult: null,
                 lastResult: null,
                 myChoice: null,
+                myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [
-                        ...state.history,
-                        {
-                            roomId: state.roomId,
-                            tool: state.tool ?? 'draw',
-                            event: action.mode === 'pick' ? 'draw_pick' : 'draw_shuffle',
-                            round: action.round,
-                            actor: action.by,
-                            result: action.pickedName ?? 'shuffled',
-                            scoreA: null,
-                            scoreB: null,
-                            timestamp: action.timestamp,
-                            details: action.orderedNames.join('|'),
-                        },
-                    ]
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'draw',
+                        event: action.mode === 'pick' ? 'draw_pick' : 'draw_shuffle',
+                        round: action.round,
+                        actor: action.by,
+                        result: action.pickedName ?? 'shuffled',
+                        scoreA: null,
+                        scoreB: null,
+                        timestamp: action.timestamp,
+                        details: action.orderedNames.join('|'),
+                    }]
                     : state.history,
             };
-        case 'VOTE_UPDATE':
+        case 'REACTION_STATE':
             return {
                 ...state,
-                voteState: {
-                    options: action.options,
-                    counts: action.counts,
-                    votedBy: action.votedBy,
-                    host: action.host,
-                    finalized: action.finalized,
-                    winnerIndexes: action.winnerIndexes,
+                reactionState: {
+                    phase: action.phase,
+                    readyBy: action.readyBy,
+                    countdownMs: action.countdownMs,
+                    greenAt: action.greenAt,
+                    falseStartBy: state.reactionState?.falseStartBy ?? null,
+                    winner: state.reactionState?.winner ?? null,
+                    reactionMs: state.reactionState?.reactionMs ?? { a: null, b: null },
                     by: action.by,
                     round: action.round,
                     timestamp: action.timestamp,
@@ -458,29 +437,61 @@ function reducer(state: GameState, action: Action): GameState {
                 coinResult: null,
                 lastResult: null,
                 myChoice: null,
+                myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [
-                        ...state.history,
-                        {
-                            roomId: state.roomId,
-                            tool: state.tool ?? 'vote',
-                            event: action.finalized ? 'vote_end' : action.votedBy.length === 0 ? 'vote_start' : 'vote_cast',
-                            round: action.round,
-                            actor: action.by,
-                            result:
-                                action.winnerIndexes.length > 1
-                                    ? '平手'
-                                    : action.winnerIndexes.length === 0
-                                        ? '無票結束'
-                                        : action.options[action.winnerIndexes[0]] ?? action.options[action.counts.findIndex((c) => c === Math.max(...action.counts))] ?? 'vote',
-                            scoreA: null,
-                            scoreB: null,
-                            timestamp: action.timestamp,
-                            details: `${action.options.join('|')} :: ${action.counts.join('|')}`,
-                        },
-                    ]
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'reaction',
+                        event: 'reaction_state',
+                        round: action.round,
+                        actor: action.by,
+                        result: action.phase,
+                        scoreA: null,
+                        scoreB: null,
+                        timestamp: action.timestamp,
+                        details: `ready=${action.readyBy.join('|') || 'none'}; countdownMs=${action.countdownMs ?? 'na'}`,
+                    }]
+                    : state.history,
+            };
+        case 'REACTION_RESULT':
+            return {
+                ...state,
+                reactionState: {
+                    phase: 'result',
+                    readyBy: [],
+                    countdownMs: null,
+                    greenAt: null,
+                    falseStartBy: action.falseStartBy,
+                    winner: action.winner,
+                    reactionMs: action.reactionMs,
+                    by: action.by,
+                    round: action.round,
+                    timestamp: action.timestamp,
+                },
+                drawResult: null,
+                wheelResult: null,
+                diceResult: null,
+                coinResult: null,
+                lastResult: null,
+                myChoice: null,
+                myChoiceSubmitted: false,
+                opponentReady: false,
+                round: action.round + 1,
+                history: state.roomId
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'reaction',
+                        event: 'reaction_result',
+                        round: action.round,
+                        actor: action.by,
+                        result: action.winner,
+                        scoreA: null,
+                        scoreB: null,
+                        timestamp: action.timestamp,
+                        details: `false_start=${action.falseStartBy ?? 'none'}; a=${action.reactionMs.a ?? 'na'}; b=${action.reactionMs.b ?? 'na'}`,
+                    }]
                     : state.history,
             };
         case 'CHAT':
@@ -490,32 +501,28 @@ function reducer(state: GameState, action: Action): GameState {
         case 'REMOVE_EMOJI':
             return { ...state, emojis: state.emojis.filter((e) => e.id !== action.id) };
         case 'REMATCH_REQUESTED':
-            return {
-                ...state,
-                rematchRequestedByOpponent: action.from !== state.mySlot,
-            };
+            return { ...state, rematchRequestedByOpponent: action.from !== state.mySlot };
         case 'REMATCH_STATUS':
             return {
                 ...state,
                 rematchRequestedByMe: !!state.mySlot && action.requestedBy.includes(state.mySlot),
-                rematchRequestedByOpponent:
-                    !!state.mySlot && action.requestedBy.includes(state.mySlot === 'a' ? 'b' : 'a'),
+                rematchRequestedByOpponent: !!state.mySlot && action.requestedBy.includes(state.mySlot === 'a' ? 'b' : 'a'),
             };
         case 'REMATCH_STARTED':
             return resetForNewMatch(state, action.bestOf);
         case 'OPPONENT_LEFT':
-            return {
-                ...state,
-                error: '對手斷線，系統會等待對手重連 30 秒',
-            };
+            return { ...state, error: { code: 'opponent_disconnected', message: 'Opponent disconnected. Waiting up to 30 seconds for reconnection.' } };
         case 'ERROR':
-            return { ...state, error: action.message };
+            return { ...state, error: { code: action.code, message: action.message, reason: action.reason } };
         case 'CLEAR_ERROR':
             return { ...state, error: null };
         default:
             return state;
     }
 }
+
+export const gameReducerForTest = reducer;
+export const initialGameStateForTest = initialState;
 
 let emojiIdCounter = 0;
 
@@ -525,22 +532,10 @@ export function useGameState() {
     const handleMessage = useCallback((msg: ServerMessage) => {
         switch (msg.type) {
             case 'room_created':
-                dispatch({
-                    type: 'ROOM_CREATED',
-                    roomId: msg.roomId,
-                    bestOf: msg.bestOf,
-                    tool: msg.tool,
-                    reconnectToken: msg.reconnectToken,
-                });
+                dispatch({ type: 'ROOM_CREATED', roomId: msg.roomId, bestOf: msg.bestOf, tool: msg.tool, reconnectToken: msg.reconnectToken });
                 break;
             case 'joined':
-                dispatch({
-                    type: 'JOINED',
-                    roomId: msg.roomId,
-                    bestOf: msg.bestOf,
-                    tool: msg.tool,
-                    reconnectToken: msg.reconnectToken,
-                });
+                dispatch({ type: 'JOINED', roomId: msg.roomId, bestOf: msg.bestOf, tool: msg.tool, reconnectToken: msg.reconnectToken });
                 break;
             case 'game_start':
                 dispatch({ type: 'GAME_START', you: msg.you, bestOf: msg.bestOf, tool: msg.tool });
@@ -565,47 +560,19 @@ export function useGameState() {
                 dispatch({ type: 'OPPONENT_READY' });
                 break;
             case 'round_result':
-                dispatch({
-                    type: 'ROUND_RESULT',
-                    choices: msg.choices,
-                    result: msg.result,
-                    score: msg.score,
-                    round: msg.round,
-                });
+                dispatch({ type: 'ROUND_RESULT', choices: msg.choices, result: msg.result, score: msg.score, round: msg.round });
                 break;
             case 'game_over':
                 dispatch({ type: 'GAME_OVER', winner: msg.winner });
                 break;
             case 'coin_result':
-                dispatch({
-                    type: 'COIN_RESULT',
-                    result: msg.result,
-                    by: msg.by,
-                    round: msg.round,
-                    timestamp: msg.timestamp,
-                });
+                dispatch({ type: 'COIN_RESULT', result: msg.result, by: msg.by, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'dice_result':
-                dispatch({
-                    type: 'DICE_RESULT',
-                    values: msg.values,
-                    total: msg.total,
-                    count: msg.count,
-                    sides: msg.sides,
-                    by: msg.by,
-                    round: msg.round,
-                    timestamp: msg.timestamp,
-                });
+                dispatch({ type: 'DICE_RESULT', values: msg.values, total: msg.total, count: msg.count, sides: msg.sides, by: msg.by, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'wheel_result':
-                dispatch({
-                    type: 'WHEEL_RESULT',
-                    options: msg.options,
-                    selectedIndex: msg.selectedIndex,
-                    by: msg.by,
-                    round: msg.round,
-                    timestamp: msg.timestamp,
-                });
+                dispatch({ type: 'WHEEL_RESULT', options: msg.options, selectedIndex: msg.selectedIndex, by: msg.by, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'draw_result':
                 dispatch({
@@ -621,19 +588,11 @@ export function useGameState() {
                     timestamp: msg.timestamp,
                 });
                 break;
-            case 'vote_update':
-                dispatch({
-                    type: 'VOTE_UPDATE',
-                    options: msg.options,
-                    counts: msg.counts,
-                    votedBy: msg.votedBy,
-                    host: msg.host,
-                    finalized: msg.finalized,
-                    winnerIndexes: msg.winnerIndexes,
-                    by: msg.by,
-                    round: msg.round,
-                    timestamp: msg.timestamp,
-                });
+            case 'reaction_state':
+                dispatch({ type: 'REACTION_STATE', phase: msg.phase, readyBy: msg.readyBy, countdownMs: msg.countdownMs, greenAt: msg.greenAt, by: msg.by, round: msg.round, timestamp: msg.timestamp });
+                break;
+            case 'reaction_result':
+                dispatch({ type: 'REACTION_RESULT', winner: msg.winner, falseStartBy: msg.falseStartBy, reactionMs: msg.reactionMs, by: msg.by, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'chat_broadcast':
                 dispatch({ type: 'CHAT', entry: { from: msg.from, text: msg.text, timestamp: msg.timestamp } });
@@ -657,7 +616,7 @@ export function useGameState() {
                 dispatch({ type: 'OPPONENT_LEFT' });
                 break;
             case 'error':
-                dispatch({ type: 'ERROR', message: msg.message });
+                dispatch({ type: 'ERROR', code: msg.code, message: msg.message, reason: msg.reason });
                 break;
         }
     }, []);
