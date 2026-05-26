@@ -591,6 +591,11 @@ export function useGameState() {
                 const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
                 if (!tool) break;
                 dispatch({ type: 'ROOM_CREATED', roomId: msg.roomId, bestOf: safeInt(msg.bestOf, 3), tool, reconnectToken: msg.reconnectToken });
+                // Non-rps tools support solo play: skip the waiting screen by starting immediately.
+                // The server also sends game_start right after, which is handled identically.
+                if (tool !== 'rps') {
+                    dispatch({ type: 'GAME_START', you: 'a', bestOf: safeInt(msg.bestOf, 3), tool });
+                }
                 break;
             }
             case 'joined': {
