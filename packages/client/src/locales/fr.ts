@@ -132,6 +132,12 @@ const dict: Dict = {
     'wheel.addOption': 'Ajouter une option',
     'wheel.shuffle': 'Mélanger les options',
     'wheel.spin': 'Faire tourner la roue',
+    'wheel.editOptions': 'Modifier les options',
+    'wheel.editTitle': 'Modifier les options',
+    'wheel.closeEditor': "Fermer l'\u00e9diteur",
+    'wheel.showImageField': 'Afficher le champ image',
+    'wheel.hideImageField': 'Masquer le champ image',
+    'wheel.advanced': 'Avancé',
 
     'draw.result': 'Résultat du tirage',
     'draw.shuffledDone': 'Mélange terminé',
@@ -166,6 +172,15 @@ const dict: Dict = {
     'reaction.youMs': 'Votre réaction (ms)',
     'reaction.oppMs': 'Réaction adverse (ms)',
     'reaction.falseStartBy': 'Faux départ de {who}',
+    'reaction.modePickerHint': 'Choisissez un mode. Les deux joueurs doivent accepter.',
+    'reaction.modeF1Label': 'Départ F1',
+    'reaction.modeF1Desc': 'Appuyez le plus vite possible quand le feu passe au vert',
+    'reaction.modeTargetLabel': 'Temps cible',
+    'reaction.modeTargetDesc': 'Appuyez au plus proche du temps cible pour gagner',
+    'reaction.targetValue': 'Cible (s)',
+    'reaction.timerNow': 'Minuteur',
+    'reaction.deltaYou': 'Votre écart (cs)',
+    'reaction.deltaOpp': 'Écart adverse (cs)',
 
     'who.me': 'Vous',
     'who.opp': 'Adversaire',
@@ -185,6 +200,9 @@ const dict: Dict = {
     'tool.subtitle.wheel': 'Roue a options personnalisées',
     'tool.subtitle.draw': 'Sélection aléatoire et mélange',
     'tool.subtitle.reaction': 'Compte a rebours rouge, appuyez au vert',
+
+    'darkMode.enable': 'Activer le mode sombre',
+    'darkMode.disable': 'Désactiver le mode sombre',
 };
 
 export default dict;

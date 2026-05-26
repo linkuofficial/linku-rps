@@ -104,7 +104,7 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
         <>
             <div
                 key={dicePulseKey}
-                className={`tool-result-panel dice-result-panel mb-4 border border-black px-4 py-5 text-center sm:px-6 ${diceRolling ? 'dice-result-panel--rolling' : state.diceResult ? 'dice-result-panel--settled' : ''}`}
+                className={`tool-result-panel dice-result-panel mb-4 border border-primary px-4 py-5 text-center sm:px-6 ${diceRolling ? 'dice-result-panel--rolling' : state.diceResult ? 'dice-result-panel--settled' : ''}`}
             >
                 <div className="mb-1 text-label-sm text-on-surface-variant">{t('dice.rollRound', { round: Math.max(1, state.round - 1) })}</div>
                 <div
@@ -130,7 +130,7 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
                 <button
                     onClick={() => setDiceControlsOpen((o) => !o)}
                     aria-expanded={diceControlsOpen}
-                    className="dice-controls-toggle mb-2 inline-flex items-center gap-2 border border-border bg-white px-2.5 py-1.5 text-label-sm text-on-surface-variant transition-colors hover:border-black hover:text-on-surface"
+                    className="dice-controls-toggle mb-2 inline-flex items-center gap-2 border border-border bg-surface-container-lowest px-2.5 py-1.5 text-label-sm text-on-surface-variant transition-colors hover:border-on-surface hover:text-on-surface"
                 >
                     <Icon name="casino" className="text-[14px]" />
                     <span dir="ltr">{diceCount}d{diceSides}</span>
@@ -138,14 +138,14 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
                 </button>
 
                 <div className={`dice-controls-shell ${diceControlsOpen ? 'dice-controls-shell--open' : ''}`}>
-                    <div className="dice-controls-panel border border-border bg-white/90 p-3 sm:p-3.5">
+                    <div className="dice-controls-panel border border-border bg-surface-container-lowest/90 p-3 sm:p-3.5">
                         <div className="mb-2 grid grid-cols-2 gap-2">
                             <label className="text-label-sm text-on-surface-variant">
                                 {t('dice.count')}
                                 <input
                                     type="number" min={1} max={20} value={diceCount}
                                     onChange={(e) => setDiceCount(Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
-                                    className="mt-1 w-full border border-border px-2.5 py-1.5 text-sm focus:outline-none focus:border-black transition-colors"
+                                    className="mt-1 w-full border border-border bg-surface-container-lowest text-on-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-on-surface transition-colors"
                                 />
                             </label>
                             <label className="text-label-sm text-on-surface-variant">
@@ -153,15 +153,15 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
                                 <input
                                     type="number" min={2} max={1000} value={diceSides}
                                     onChange={(e) => setDiceSides(Math.min(1000, Math.max(2, Number(e.target.value) || 6)))}
-                                    className="mt-1 w-full border border-border px-2.5 py-1.5 text-sm focus:outline-none focus:border-black transition-colors"
+                                    className="mt-1 w-full border border-border bg-surface-container-lowest text-on-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-on-surface transition-colors"
                                 />
                             </label>
                         </div>
                         <div className="mb-2.5 flex gap-1.5">
-                            <button onClick={() => setDiceSides(6)} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-black">D6</button>
-                            <button onClick={() => setDiceSides(20)} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-black">D20</button>
+                            <button onClick={() => setDiceSides(6)} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-on-surface">D6</button>
+                            <button onClick={() => setDiceSides(20)} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-on-surface">D20</button>
                         </div>
-                        <button onClick={rollDice} className="w-full bg-black py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-container">
+                        <button onClick={rollDice} className="w-full bg-primary py-2.5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-container">
                             {t('dice.roll')}
                         </button>
                     </div>
@@ -171,7 +171,7 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
             <button
                 onClick={exportCsv}
                 disabled={!state.roomId}
-                className="w-full py-2 border border-black text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>

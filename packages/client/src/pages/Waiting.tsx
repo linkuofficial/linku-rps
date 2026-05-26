@@ -25,7 +25,7 @@ export default function Waiting({ roomId, bestOf, tool }: Props) {
       <h1 className="text-headline-lg-mobile sm:text-headline-lg text-on-surface mb-2">{toolName(tool)}</h1>
       <p className="text-label-md text-on-surface-variant mb-10">{t('waiting.waitingOpponent')}</p>
       <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
-        className="bg-surface-alt border border-border p-8 mb-4 cursor-pointer hover:border-black transition-colors" onClick={copyLink}>
+        className="bg-surface-alt border border-border p-8 mb-4 cursor-pointer hover:border-on-surface transition-colors" onClick={copyLink}>
         <div dir="ltr" className="text-headline-lg font-mono tracking-[0.4em] text-on-surface mb-2">{roomId}</div>
         <div className="text-label-sm text-on-surface-variant">{copied ? t('common.copied') : t('waiting.copyInvite')}</div>
       </motion.div>

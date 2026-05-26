@@ -1,7 +1,7 @@
 import '@fontsource-variable/geist';
 import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Route, Switch } from 'wouter';
+import { Route, Switch, Redirect } from 'wouter';
 import './index.css';
 import { I18nProvider } from './i18n';
 
@@ -13,7 +13,7 @@ const CopyrightNoticePage = lazy(() => import('./pages/CopyrightNoticePage.tsx')
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nProvider>
-      <Suspense fallback={<div className="min-h-[100dvh] bg-white" />}>
+      <Suspense fallback={<div className="min-h-[100dvh] bg-surface" />}>
         <Switch>
           <Route path="/">
             <App />
@@ -26,6 +26,9 @@ createRoot(document.getElementById('root')!).render(
           </Route>
           <Route path="/copyright">
             <CopyrightNoticePage />
+          </Route>
+          <Route>
+            <Redirect to="/" />
           </Route>
         </Switch>
       </Suspense>

@@ -135,7 +135,7 @@ export default function Game({ state, send, dispatch }: Props) {
     const errorBanner = state.error ? (
         <button
             onClick={() => dispatch({ type: 'CLEAR_ERROR' })}
-            className={`w-full mb-3 border-2 border-black bg-surface-alt px-3 py-2 ${isRtl ? 'text-right' : 'text-left'} text-label-sm text-on-surface`}
+            className={`w-full mb-3 border-2 border-primary bg-surface-alt px-3 py-2 ${isRtl ? 'text-right' : 'text-left'} text-label-sm text-on-surface`}
         >
             {translateError(state.error.code, state.error.message)}
         </button>

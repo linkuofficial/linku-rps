@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useGameState } from './hooks/useGameState';
+import { useDarkMode } from './hooks/useDarkMode';
 import LanguageSwitcherCompact from './components/LanguageSwitcherCompact';
 import Icon from './components/Icon';
 import { useI18n } from './i18n';
@@ -20,6 +21,7 @@ interface ReconnectSnapshot {
 
 export default function App() {
   const { t } = useI18n();
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const { state, dispatch, handleMessage } = useGameState();
   const { send, connected, connectionState, reconnectAttempt, reconnectNow } = useWebSocket(
     handleMessage,
@@ -93,7 +95,16 @@ export default function App() {
                 <Icon name="arrow_back" className="text-[20px]" />
               </button>
             ) : <div />}
-            <LanguageSwitcherCompact />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleDark}
+                aria-label={isDark ? t('darkMode.disable') : t('darkMode.enable')}
+                className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
+              >
+                <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-[20px]" />
+              </button>
+              <LanguageSwitcherCompact />
+            </div>
           </div>
         )}
 

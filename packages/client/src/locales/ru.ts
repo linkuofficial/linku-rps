@@ -132,6 +132,12 @@ const dict: Dict = {
     'wheel.addOption': 'Добавить вариант',
     'wheel.shuffle': 'Перемешать варианты',
     'wheel.spin': 'Крутить колесо',
+    'wheel.editOptions': 'Редактировать варианты',
+    'wheel.editTitle': 'Редактировать варианты',
+    'wheel.closeEditor': 'Закрыть редактор',
+    'wheel.showImageField': 'Показать поле изображения',
+    'wheel.hideImageField': 'Скрыть поле изображения',
+    'wheel.advanced': 'Дополнительно',
 
     'draw.result': 'Результат жеребьевки',
     'draw.shuffledDone': 'Перемешано',
@@ -166,6 +172,15 @@ const dict: Dict = {
     'reaction.youMs': 'Ваша реакция (мс)',
     'reaction.oppMs': 'Реакция соперника (мс)',
     'reaction.falseStartBy': 'Фальстарт у {who}',
+    'reaction.modePickerHint': 'Выберите режим. Оба игрока должны согласиться.',
+    'reaction.modeF1Label': 'Старт F1',
+    'reaction.modeF1Desc': 'Нажмите как можно быстрее при зелёном свете',
+    'reaction.modeTargetLabel': 'Целевое время',
+    'reaction.modeTargetDesc': 'Нажмите как можно ближе к целевому времени для победы',
+    'reaction.targetValue': 'Цель (с)',
+    'reaction.timerNow': 'Таймер',
+    'reaction.deltaYou': 'Ваше отклонение (cs)',
+    'reaction.deltaOpp': 'Отклонение соперника (cs)',
 
     'who.me': 'Вы',
     'who.opp': 'Соперник',
@@ -185,6 +200,9 @@ const dict: Dict = {
     'tool.subtitle.wheel': 'Колесо с пользовательскими вариантами',
     'tool.subtitle.draw': 'Случайный выбор и перемешивание',
     'tool.subtitle.reaction': 'Красный отсчет, нажмите на зеленом',
+
+    'darkMode.enable': 'Включить тёмный режим',
+    'darkMode.disable': 'Отключить тёмный режим',
 };
 
 export default dict;

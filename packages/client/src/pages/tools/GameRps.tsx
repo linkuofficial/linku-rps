@@ -41,7 +41,7 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className={`text-center py-3 mb-4 font-semibold text-lg border ${iWon ? 'border-black bg-surface-alt text-on-surface' : isDraw ? 'border-border bg-surface-alt text-on-surface-variant' : 'border-black bg-white text-on-surface'}`}
+                        className={`text-center py-3 mb-4 font-semibold text-lg border ${iWon ? 'border-primary bg-surface-alt text-on-surface' : isDraw ? 'border-border bg-surface-alt text-on-surface-variant' : 'border-primary bg-surface-container-lowest text-on-surface'}`}
                     >
                         {iWon ? t('rps.result.win') : isDraw ? t('rps.result.draw') : t('rps.result.lose')}
                     </motion.div>
@@ -73,7 +73,7 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
             <button
                 onClick={exportCsv}
                 disabled={!state.roomId}
-                className="w-full py-2 border border-black text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>

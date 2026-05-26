@@ -132,6 +132,12 @@ const dict: Dict = {
     'wheel.addOption': '新增選項',
     'wheel.shuffle': '隨機排序',
     'wheel.spin': '轉動轉盤',
+    'wheel.editOptions': '編輯選項',
+    'wheel.editTitle': '編輯選項',
+    'wheel.closeEditor': '關閉編輯器',
+    'wheel.showImageField': '展開圖片欄位',
+    'wheel.hideImageField': '收合圖片欄位',
+    'wheel.advanced': '進階設定',
 
     'draw.result': '抽籤結果',
     'draw.shuffledDone': '已完成洗牌',
@@ -166,6 +172,15 @@ const dict: Dict = {
     'reaction.youMs': '你的反應時間（毫秒）',
     'reaction.oppMs': '對手反應時間（毫秒）',
     'reaction.falseStartBy': '{who} 搶跑',
+    'reaction.modePickerHint': '選擇模式，雙方確認後開始',
+    'reaction.modeF1Label': 'F1 起跑',
+    'reaction.modeF1Desc': '綠燈亮起後盡快按下',
+    'reaction.modeTargetLabel': '目標時間',
+    'reaction.modeTargetDesc': '最接近目標時間者獲勝',
+    'reaction.targetValue': '目標（秒）',
+    'reaction.timerNow': '計時器',
+    'reaction.deltaYou': '你的誤差（cs）',
+    'reaction.deltaOpp': '對手誤差（cs）',
 
     'who.me': '你',
     'who.opp': '對手',
@@ -185,6 +200,8 @@ const dict: Dict = {
     'tool.subtitle.wheel': '自訂選項轉盤',
     'tool.subtitle.draw': '隨機抽取與洗牌',
     'tool.subtitle.reaction': '紅燈倒數，綠燈即按',
+    'darkMode.enable': '啟用深色模式',
+    'darkMode.disable': '關閉深色模式',
 };
 
 export default dict;

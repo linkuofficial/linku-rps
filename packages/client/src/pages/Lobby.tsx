@@ -48,14 +48,14 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
 
         {error && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="border-2 border-black bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
+            className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
             onClick={() => dispatch({ type: 'CLEAR_ERROR' })}>{translateError(error.code, error.message)}</motion.div>
         )}
 
         <div className="bg-surface-alt border border-border p-6 mb-4">
           <p className="text-label-md text-on-surface-variant mb-4">{t('lobby.soloHint')}</p>
           <button onClick={startNow} disabled={!connected}
-            className="w-full py-3 bg-black text-white font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {t('common.startNow')}</button>
         </div>
 
@@ -65,9 +65,9 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
             dir="ltr"
             onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
             onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-            className="w-full px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors mb-3" />
+            className="w-full px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors mb-3" />
           <button onClick={joinRoom} disabled={!connected || !joinCode.trim()}
-            className="w-full py-3 bg-white border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            className="w-full py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {t('common.join')}</button>
         </div>
       </motion.div>
@@ -85,7 +85,7 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
 
       {error && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="border-2 border-black bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
+          className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
           onClick={() => dispatch({ type: 'CLEAR_ERROR' })}>{translateError(error.code, error.message)}</motion.div>
       )}
 
@@ -99,7 +99,7 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
                 <button
                   key={n}
                   onClick={() => setBestOf(n)}
-                  className={`w-9 h-9 text-label-md transition-colors ${bestOf === n ? 'bg-black text-white' : 'bg-white text-on-surface border border-border hover:border-black'
+                  className={`w-9 h-9 text-label-md transition-colors ${bestOf === n ? 'bg-primary text-on-primary' : 'bg-surface-container-lowest text-on-surface border border-border hover:border-on-surface'
                     }`}
                 >
                   {n}
@@ -114,7 +114,7 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
           </p>
         )}
         <button onClick={createRoom} disabled={!connected}
-          className="w-full py-3 bg-black text-white font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {t('common.createRoom')}</button>
       </div>
 
@@ -130,9 +130,9 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
           dir="ltr"
           onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
           onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-          className="w-full px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors mb-3" />
+          className="w-full px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors mb-3" />
         <button onClick={joinRoom} disabled={!connected || !joinCode.trim()}
-          className="w-full py-3 bg-white border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          className="w-full py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {t('common.join')}</button>
       </div>
     </motion.div>

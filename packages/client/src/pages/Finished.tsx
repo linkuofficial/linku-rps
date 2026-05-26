@@ -41,13 +41,13 @@ export default function Finished({ state, send, dispatch, connected }: Props) {
         <button
           onClick={requestRematch}
           disabled={!connected || state.rematchRequestedByMe}
-          className="px-8 py-3 bg-black text-white font-medium hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-8 py-3 bg-primary text-on-primary font-medium hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {state.rematchRequestedByMe ? t('finished.rematchSent') : t('finished.rematch')}
         </button>
         <button
           onClick={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
-          className="px-6 py-3 border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors"
+          className="px-6 py-3 border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors"
         >
           {t('common.backToTools')}
         </button>

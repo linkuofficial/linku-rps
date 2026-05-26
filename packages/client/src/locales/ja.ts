@@ -132,6 +132,12 @@ const dict: Dict = {
     'wheel.addOption': '選択肢を追加',
     'wheel.shuffle': '選択肢をシャッフル',
     'wheel.spin': 'ルーレットを回す',
+    'wheel.editOptions': 'オプション編集',
+    'wheel.editTitle': 'オプション編集',
+    'wheel.closeEditor': 'エディタを閉じる',
+    'wheel.showImageField': '画像フィールドを表示',
+    'wheel.hideImageField': '画像フィールドを非表示',
+    'wheel.advanced': '詳細設定',
 
     'draw.result': '抽選結果',
     'draw.shuffledDone': 'シャッフル完了',
@@ -166,6 +172,15 @@ const dict: Dict = {
     'reaction.youMs': 'あなたの反応時間（ms）',
     'reaction.oppMs': '相手の反応時間（ms）',
     'reaction.falseStartBy': '{who} のフライング',
+    'reaction.modePickerHint': 'モードを選択。両プレイヤーが同意してからスタート',
+    'reaction.modeF1Label': 'F1スタート',
+    'reaction.modeF1Desc': '青信号で素早く押してください',
+    'reaction.modeTargetLabel': 'ターゲットタイム',
+    'reaction.modeTargetDesc': '目標時間に最も近いタイムで勝利',
+    'reaction.targetValue': '目標（秒）',
+    'reaction.timerNow': 'タイマー',
+    'reaction.deltaYou': 'あなたのずれ（cs）',
+    'reaction.deltaOpp': '相手のずれ（cs）',
 
     'who.me': 'あなた',
     'who.opp': '相手',
@@ -185,6 +200,9 @@ const dict: Dict = {
     'tool.subtitle.wheel': 'カスタム選択ルーレット',
     'tool.subtitle.draw': 'ランダム抽選とシャッフル',
     'tool.subtitle.reaction': 'レッドライト後、グリーンで押す',
+
+    'darkMode.enable': 'ダークモードを有効化',
+    'darkMode.disable': 'ダークモードを無効化',
 };
 
 export default dict;

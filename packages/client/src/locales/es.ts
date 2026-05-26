@@ -132,6 +132,12 @@ const dict: Dict = {
     'wheel.addOption': 'Agregar opcion',
     'wheel.shuffle': 'Mezclar opciones',
     'wheel.spin': 'Girar ruleta',
+    'wheel.editOptions': 'Editar opciones',
+    'wheel.editTitle': 'Editar opciones',
+    'wheel.closeEditor': 'Cerrar editor',
+    'wheel.showImageField': 'Mostrar campo imagen',
+    'wheel.hideImageField': 'Ocultar campo imagen',
+    'wheel.advanced': 'Avanzado',
 
     'draw.result': 'Resultado del sorteo',
     'draw.shuffledDone': 'Mezclado',
@@ -166,6 +172,15 @@ const dict: Dict = {
     'reaction.youMs': 'Tu reaccion (ms)',
     'reaction.oppMs': 'Reaccion del rival (ms)',
     'reaction.falseStartBy': 'Salida en falso de {who}',
+    'reaction.modePickerHint': 'Elige modo. Ambos jugadores deben aceptar.',
+    'reaction.modeF1Label': 'Salida F1',
+    'reaction.modeF1Desc': 'Pulsa lo más rápido posible al ponerse en verde',
+    'reaction.modeTargetLabel': 'Tiempo objetivo',
+    'reaction.modeTargetDesc': 'Pulsa lo más cerca del tiempo objetivo para ganar',
+    'reaction.targetValue': 'Objetivo (s)',
+    'reaction.timerNow': 'Temporizador',
+    'reaction.deltaYou': 'Tu delta (cs)',
+    'reaction.deltaOpp': 'Delta rival (cs)',
 
     'who.me': 'Tu',
     'who.opp': 'Rival',
@@ -185,6 +200,9 @@ const dict: Dict = {
     'tool.subtitle.wheel': 'Ruleta de opciones personalizadas',
     'tool.subtitle.draw': 'Seleccion aleatoria y mezcla',
     'tool.subtitle.reaction': 'Cuenta atras roja, pulsa en verde',
+
+    'darkMode.enable': 'Activar modo oscuro',
+    'darkMode.disable': 'Desactivar modo oscuro',
 };
 
 export default dict;

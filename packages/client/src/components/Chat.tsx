@@ -28,7 +28,7 @@ export default function Chat({ messages, mySlot, onSend }: Props) {
           const isMe = msg.from === mySlot;
           return (
             <motion.div key={i} initial={{ opacity: 0, x: isMe ? 20 : -20 }} animate={{ opacity: 1, x: 0 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] px-3 py-1.5 text-sm ${isMe ? 'bg-black text-white' : 'bg-white text-on-surface border border-border'}`}>{msg.text}</div>
+              <div className={`max-w-[75%] px-3 py-1.5 text-sm ${isMe ? 'bg-primary text-on-primary' : 'bg-surface-container-lowest text-on-surface border border-border'}`}>{msg.text}</div>
             </motion.div>
           );
         })}
@@ -36,8 +36,8 @@ export default function Chat({ messages, mySlot, onSend }: Props) {
       </div>
       <div className="flex gap-2">
         <input type="text" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} maxLength={100} placeholder={t('common.chatPlaceholder')}
-          className="flex-1 px-3 py-2 bg-white border border-border text-sm focus:outline-none focus:border-black transition-colors" />
-        <button onClick={handleSend} disabled={!text.trim()} className="px-4 py-2 bg-black text-white text-sm font-medium hover:bg-primary-container transition-colors disabled:opacity-30">{t('common.send')}</button>
+          className="flex-1 px-3 py-2 bg-surface-container-lowest border border-border text-on-surface text-sm focus:outline-none focus:border-on-surface transition-colors" />
+        <button onClick={handleSend} disabled={!text.trim()} className="px-4 py-2 bg-primary text-on-primary text-sm font-medium hover:bg-primary-container transition-colors disabled:opacity-30">{t('common.send')}</button>
       </div>
     </div>
   );

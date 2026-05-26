@@ -20,7 +20,7 @@ export default function LanguageSwitcherCompact() {
         locale === 'zh' ? 'font-locale-zh' : locale === 'ja' ? 'font-locale-ja' : locale === 'ar' ? 'font-locale-ar' : locale === 'ru' ? 'font-locale-cyrillic' : 'font-locale-latin';
 
     return (
-        <label className={`inline-flex items-center border border-border bg-white px-2 py-2 text-label-sm text-on-surface ${nextLocaleClass}`}>
+        <label className={`inline-flex items-center border border-border bg-surface-container-lowest px-2 py-2 text-label-sm text-on-surface ${nextLocaleClass}`}>
             <span className="sr-only">Language</span>
             <select
                 value={locale}

@@ -6,11 +6,11 @@ export default function CopyrightNoticePage() {
     const currentYear = new Date().getFullYear();
 
     return (
-        <div className="min-h-screen bg-white px-4 py-10 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-surface px-4 py-10 sm:px-6 lg:px-8">
             <Link
                 href="/"
                 aria-label="Back to Home"
-                className="fixed left-3 top-1/2 z-30 -translate-y-1/2 border border-border bg-white px-3 py-2 text-body-lg leading-none text-primary shadow-sm transition hover:opacity-70 sm:left-4"
+                className="fixed left-3 top-1/2 z-30 -translate-y-1/2 border border-border bg-surface-container-lowest px-3 py-2 text-body-lg leading-none text-primary shadow-sm transition hover:opacity-70 sm:left-4"
             >
                 ←
             </Link>

@@ -87,35 +87,55 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
     const countdownTotalMs = reaction?.phase === 'countdown' ? (reaction.countdownMs ?? 0) : 0;
     const countdownRemainingMs = reaction?.phase === 'countdown' && reaction.greenAt
         ? Math.max(0, reaction.greenAt - reactionNow) : 0;
+    const countdownElapsedMs = reaction?.phase === 'countdown'
+        ? Math.max(0, countdownTotalMs - countdownRemainingMs)
+        : 0;
     const countdownProgress = reaction?.phase === 'green' ? 1
         : countdownTotalMs > 0 ? Math.min(1, Math.max(0, (countdownTotalMs - countdownRemainingMs) / countdownTotalMs)) : 0;
-    const f1LightsActive = reaction?.phase === 'green' ? 5
-        : reaction?.phase === 'countdown' ? Math.min(5, Math.ceil(countdownProgress * 5)) : 0;
+    const f1LightsActive = reaction?.phase === 'countdown'
+        ? syncedMode === 'f1'
+            ? Math.min(5, Math.floor(countdownElapsedMs / 1000) + 1)
+            : Math.min(5, Math.ceil(countdownProgress * 5))
+        : 0;
     const isReactionLocked = reaction?.phase === 'countdown' || reaction?.phase === 'green';
     const myReady = !!(reaction && mySlot && reaction.readyBy.includes(mySlot));
     const oppReady = !!(reaction && oppSlot && reaction.readyBy.includes(oppSlot));
+    const isIdlePhase = !reaction || reaction.phase === 'idle';
+    const isCountdownPhase = reaction?.phase === 'countdown';
+    const isGreenPhase = reaction?.phase === 'green';
+    const isTargetMode = syncedMode === 'target';
+    const f1LightVisualActive = isCountdownPhase ? f1LightsActive : 0;
+    const primaryActionDisabled = isIdlePhase ? isReactionLocked : (isTargetMode ? !isGreenPhase : false);
+    const primaryActionLabel = isIdlePhase
+        ? (myReady ? t('reaction.cancelReady') : t('reaction.tapReady'))
+        : (isTargetMode ? t('reaction.pressButton') : `${t('reaction.pressButton')} (F1)`);
+    const stageHint = isIdlePhase
+        ? `${t('reaction.youReady')}: ${myReady ? t('reaction.ready') : t('reaction.notReady')} | ${t('reaction.oppReady')}: ${oppReady ? t('reaction.ready') : t('reaction.notReady')}`
+        : isCountdownPhase ? t('reaction.phaseCountdown')
+            : isGreenPhase ? t('reaction.phaseGreen')
+                : t('reaction.phaseIdle');
     const targetValueText = reaction?.targetCentis == null ? '--' : (reaction.targetCentis / 100).toFixed(2);
     const formatDelta = (d: number | null | undefined) => d == null ? '-' : (d / 100).toFixed(2);
+    const myReactionMs = reaction?.reactionMs[(mySlot ?? 'a')] ?? null;
+    const oppReactionMs = reaction?.reactionMs[(oppSlot ?? 'b')] ?? null;
+    const myDeltaCentis = reaction?.deltaCentis[(mySlot ?? 'a')] ?? null;
+    const oppDeltaCentis = reaction?.deltaCentis[(oppSlot ?? 'b')] ?? null;
+    const myReactionText = myReactionMs == null ? '-' : String(myReactionMs);
+    const oppReactionText = oppReactionMs == null ? '-' : String(oppReactionMs);
     const runningStopwatchText = reaction?.phase === 'green' && reaction?.greenAt
         ? ((reactionNow - reaction.greenAt) / 1000).toFixed(2) : '0.00';
     const winnerLabel = reaction?.winner
         ? reaction.winner === 'draw' ? t('reaction.winnerDraw')
             : whoLabel(reaction.winner === mySlot ? 'me' : 'opp')
         : t('reaction.noResult');
-    const phaseLabel = reaction?.phase === 'green' ? t('reaction.phaseGreen')
-        : reaction?.phase === 'countdown' ? t('reaction.phaseCountdown')
-        : reaction?.phase === 'result' ? t('reaction.phaseResult')
-        : t('reaction.phaseIdle');
-
     return (
         <>
-            <div className="mb-4 border border-black bg-white p-3 sm:p-4">
-                <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="mb-4 border border-primary bg-surface-container-lowest p-3 sm:p-4">
+                <div className="mb-2">
                     <div>
                         <div className="text-label-sm text-on-surface-variant">{t('reaction.title')}</div>
                         <div className="text-sm text-on-surface-variant">{t('reaction.modePickerHint')}</div>
                     </div>
-                    <div className="text-label-sm text-on-surface-variant">{phaseLabel}</div>
                 </div>
 
                 <div className="mb-3 grid grid-cols-2 gap-2">
@@ -126,110 +146,85 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
                                 key={mode.id}
                                 type="button"
                                 onClick={() => updateReactionMode(mode.id)}
-                                className={`border px-3 py-2 text-left transition-colors ${selected ? 'border-black bg-black text-white' : 'border-border bg-white text-on-surface hover:border-black'}`}
+                                className={`border px-3 py-2 text-left transition-colors ${selected ? 'border-primary bg-primary text-on-primary' : 'border-border bg-surface-container-lowest text-on-surface hover:border-on-surface'}`}
                             >
                                 <div className="text-sm font-semibold">{mode.label}</div>
-                                <div className={`mt-1 text-xs ${selected ? 'text-white/80' : 'text-on-surface-variant'}`}>{mode.desc}</div>
+                                <div className={`mt-1 text-xs ${selected ? 'text-on-primary/80' : 'text-on-surface-variant'}`}>{mode.desc}</div>
                             </button>
                         );
                     })}
                 </div>
 
-                <div className="border border-black p-4">
+                <div className="p-4">
                     {reaction?.phase === 'result' ? (
                         <div className="rounded-md border border-border bg-surface-alt p-4 text-center">
                             <div className="text-label-sm text-on-surface-variant">{t('reaction.lastResult')}</div>
                             <div className="mt-1 text-2xl font-semibold text-on-surface">{winnerLabel}</div>
-                            <div className="mx-auto mt-3 w-full max-w-md space-y-2 text-sm text-on-surface">
-                                <div className="flex items-center justify-between border border-border bg-white px-3 py-2">
-                                    <span>{t('reaction.youMs')}</span>
-                                    <span className="font-semibold">{reaction?.reactionMs[(mySlot ?? 'a')] ?? '-'}</span>
+                            <div className="mx-auto mt-3 grid w-full max-w-md grid-cols-1 gap-2 text-sm text-on-surface sm:grid-cols-2">
+                                <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
+                                    <div className="text-label-sm text-on-surface-variant">{t('reaction.youMs')}</div>
+                                    <div className="mt-1 text-xl font-semibold tabular-nums">{myReactionText}</div>
                                 </div>
-                                <div className="flex items-center justify-between border border-border bg-white px-3 py-2">
-                                    <span>{t('reaction.oppMs')}</span>
-                                    <span className="font-semibold">{reaction?.reactionMs[(oppSlot ?? 'b')] ?? '-'}</span>
+                                <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
+                                    <div className="text-label-sm text-on-surface-variant">{t('reaction.oppMs')}</div>
+                                    <div className="mt-1 text-xl font-semibold tabular-nums">{oppReactionText}</div>
                                 </div>
                                 {syncedMode === 'target' && (
                                     <>
-                                        <div className="flex items-center justify-between border border-border bg-white px-3 py-2">
-                                            <span>{t('reaction.targetValue')}</span>
-                                            <span className="font-semibold">{targetValueText}</span>
+                                        <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left sm:col-span-2">
+                                            <div className="text-label-sm text-on-surface-variant">{t('reaction.targetValue')}</div>
+                                            <div className="mt-1 text-xl font-semibold tabular-nums">{targetValueText}</div>
                                         </div>
-                                        <div className="flex items-center justify-between border border-border bg-white px-3 py-2">
-                                            <span>{t('reaction.deltaYou')}</span>
-                                            <span className="font-semibold">{formatDelta(reaction?.deltaCentis[(mySlot ?? 'a')])}</span>
+                                        <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
+                                            <div className="text-label-sm text-on-surface-variant">{t('reaction.deltaYou')}</div>
+                                            <div className="mt-1 text-xl font-semibold tabular-nums">{formatDelta(myDeltaCentis)}</div>
                                         </div>
-                                        <div className="flex items-center justify-between border border-border bg-white px-3 py-2">
-                                            <span>{t('reaction.deltaOpp')}</span>
-                                            <span className="font-semibold">{formatDelta(reaction?.deltaCentis[(oppSlot ?? 'b')])}</span>
+                                        <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
+                                            <div className="text-label-sm text-on-surface-variant">{t('reaction.deltaOpp')}</div>
+                                            <div className="mt-1 text-xl font-semibold tabular-nums">{formatDelta(oppDeltaCentis)}</div>
                                         </div>
                                     </>
                                 )}
                             </div>
                             {reaction?.falseStartBy && (
-                                <div className="mx-auto mt-3 max-w-md border border-border bg-white px-3 py-2 text-label-sm text-on-surface">
+                                <div className="mx-auto mt-3 max-w-md border border-border bg-surface-container-lowest px-3 py-2 text-label-sm text-on-surface">
                                     {t('reaction.falseStartBy', { who: whoLabel(reaction.falseStartBy === mySlot ? 'me' : 'opp') })}
                                 </div>
                             )}
                         </div>
                     ) : (
                         <div className="space-y-4 text-center">
-                            {reaction?.phase === 'green' ? (
-                                <>
-                                    <div className="text-label-sm uppercase tracking-[0.2em] text-on-surface-variant">{t('reaction.pressNow')}</div>
-                                    {syncedMode === 'f1' ? (
-                                        <div className="mx-auto grid w-full max-w-[320px] grid-cols-5 gap-2 rounded-md border border-black bg-black p-3">
-                                            {Array.from({ length: 5 }, (_, i) => {
-                                                const active = f1LightsActive > i;
-                                                return (
-                                                    <div key={`f1-light-${i}`} className={`aspect-square rounded-full border ${active ? 'border-white bg-white' : 'border-white/20 bg-white/10'}`} />
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="mx-auto w-full max-w-[320px] rounded-md border border-black bg-black px-4 py-3 text-white">
-                                            <div className="text-label-sm text-white/70">{t('reaction.targetValue')}</div>
-                                            <div className="mt-1 text-2xl font-semibold">{targetValueText}</div>
-                                            <div className="mt-2 text-label-sm text-white/70">{t('reaction.timerNow')}</div>
-                                            <div className="text-3xl font-semibold tabular-nums">{runningStopwatchText}</div>
-                                        </div>
-                                    )}
-                                    <button onClick={pressReaction} className="w-full border border-black bg-black py-6 text-2xl font-semibold text-white transition-colors hover:bg-primary-container">
-                                        {t('reaction.pressButton')} (F1)
-                                    </button>
-                                </>
-                            ) : reaction?.phase === 'countdown' ? (
-                                <>
-                                    <div className="mx-auto w-full max-w-[320px] rounded-md border border-black px-4 py-5">
-                                        {syncedMode === 'target' && (
-                                            <div className="text-label-sm text-on-surface-variant">{t('reaction.targetValue')}: ?</div>
-                                        )}
-                                        <div className="mt-2 text-4xl font-semibold tabular-nums text-on-surface">{(countdownRemainingMs / 1000).toFixed(2)}</div>
-                                        <div className="mt-2 text-sm text-on-surface-variant">{t('reaction.phaseCountdown')}</div>
+                            <div className="mx-auto w-full max-w-[360px] px-4 py-5">
+                                {isTargetMode ? (
+                                    <div className="mx-auto w-full max-w-[320px] rounded-md border border-primary bg-primary px-4 py-3 text-on-primary">
+                                        <div className="text-label-sm text-on-primary/70">{t('reaction.targetValue')}</div>
+                                        <div className="mt-1 text-2xl font-semibold">{targetValueText}</div>
+                                        <div className="mt-2 text-label-sm text-on-primary/70">{t('reaction.timerNow')}</div>
+                                        <div className="text-3xl font-semibold tabular-nums">{isGreenPhase ? runningStopwatchText : '0.00'}</div>
                                     </div>
-                                    <button disabled className="w-full border border-border bg-surface-alt py-5 text-lg font-medium text-on-surface-variant opacity-90">
-                                        {t('reaction.waitForGreen')}
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="mx-auto w-full max-w-[320px] rounded-md border border-black px-4 py-6">
-                                        <div className="text-label-sm text-on-surface-variant">{syncedMode === 'target' ? t('reaction.targetValue') : t('reaction.modeF1Label')}</div>
-                                        <div className="mt-1 text-4xl font-semibold text-on-surface tabular-nums">{syncedMode === 'target' ? '?' : 'F1'}</div>
-                                        <div className="mt-3 grid grid-cols-2 gap-2 text-label-sm text-on-surface-variant">
-                                            <div>{t('reaction.youReady')}: {myReady ? t('reaction.ready') : t('reaction.notReady')}</div>
-                                            <div>{t('reaction.oppReady')}: {oppReady ? t('reaction.ready') : t('reaction.notReady')}</div>
-                                        </div>
+                                ) : (
+                                    <div className="mx-auto grid w-full max-w-[320px] grid-cols-5 gap-2 rounded-md border border-primary bg-primary p-3">
+                                        {Array.from({ length: 5 }, (_, i) => {
+                                            const active = f1LightVisualActive > i;
+                                            return (
+                                                <div
+                                                    key={`stage-f1-light-${i}`}
+                                                    className={`aspect-square rounded-full border ${active ? 'border-red-300 bg-red-500' : 'border-on-primary/20 bg-on-primary/10'}`}
+                                                />
+                                            );
+                                        })}
                                     </div>
-                                    <button
-                                        onClick={toggleReactionReady}
-                                        disabled={isReactionLocked}
-                                        className="w-full border border-black bg-black py-4 text-lg font-semibold text-white transition-colors hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        {myReady ? t('reaction.cancelReady') : t('reaction.tapReady')}
-                                    </button>
-                                </>
-                            )}
+                                )}
+                                <div className="mt-3 text-label-sm uppercase tracking-[0.15em] text-on-surface-variant">{stageHint}</div>
+                            </div>
+
+                            <button
+                                onClick={isIdlePhase ? toggleReactionReady : pressReaction}
+                                disabled={primaryActionDisabled}
+                                className="w-full border border-primary bg-primary py-6 text-2xl font-semibold text-on-primary transition-colors hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                {primaryActionLabel}
+                            </button>
                         </div>
                     )}
                 </div>
@@ -238,7 +233,7 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
             <button
                 onClick={exportCsv}
                 disabled={!state.roomId}
-                className="w-full py-2 border border-black text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>

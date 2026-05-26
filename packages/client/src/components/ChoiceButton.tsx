@@ -7,9 +7,9 @@ export default function ChoiceButton({ choice, emoji, label, selected, disabled,
   return (
     <motion.button whileTap={{ scale: 0.92 }} whileHover={!disabled ? { scale: 1.03 } : undefined}
       onClick={() => onChoose(choice)} disabled={disabled}
-      className={`flex flex-col items-center gap-2 py-5 border transition-colors ${selected ? 'bg-black border-black text-white'
-          : disabled ? 'bg-surface-alt border-border text-on-surface-variant cursor-not-allowed'
-            : 'bg-white border-border text-on-surface hover:border-black cursor-pointer'
+      className={`flex flex-col items-center gap-2 py-5 border transition-colors ${selected ? 'bg-primary border-primary text-on-primary'
+        : disabled ? 'bg-surface-alt border-border text-on-surface-variant cursor-not-allowed'
+          : 'bg-surface-container-lowest border-border text-on-surface hover:border-on-surface cursor-pointer'
         }`}>
       <span className="text-3xl">{emoji}</span>
       <span className="text-label-sm tracking-[0.05em]">{label}</span>

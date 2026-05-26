@@ -1,4 +1,4 @@
-import type { Dict } from './types';
+﻿import type { Dict } from './types';
 
 const dict: Dict = {
 	'lang.en': 'EN',
@@ -132,6 +132,12 @@ const dict: Dict = {
 	'wheel.addOption': 'إضافة خيار',
 	'wheel.shuffle': 'خلط الخيارات',
 	'wheel.spin': 'أدر العجلة',
+	'wheel.editOptions': 'تحرير الخيارات',
+	'wheel.editTitle': 'تحرير الخيارات',
+	'wheel.closeEditor': 'إغلاق المحرر',
+	'wheel.showImageField': 'إظهار حقل الصورة',
+	'wheel.hideImageField': 'إخفاء حقل الصورة',
+	'wheel.advanced': 'متقدم',
 
 	'draw.result': 'نتيجة السحب',
 	'draw.shuffledDone': 'تم الخلط',
@@ -166,6 +172,15 @@ const dict: Dict = {
 	'reaction.youMs': 'زمن رد فعلك (مللي ثانية)',
 	'reaction.oppMs': 'زمن رد فعل الخصم (مللي ثانية)',
 	'reaction.falseStartBy': 'انطلاق مبكر من {who}',
+	'reaction.modePickerHint': 'اختر الوضع. يجب أن يوافق كلا اللاعبين',
+	'reaction.modeF1Label': 'انطلاق F1',
+	'reaction.modeF1Desc': 'اضغط بأسرع ما يمكن عند الضوء الأخضر',
+	'reaction.modeTargetLabel': 'الوقت المستهدف',
+	'reaction.modeTargetDesc': 'اضغط أقرب ما يمكن من الوقت المستهدف للفوز',
+	'reaction.targetValue': 'الهدف (ث)',
+	'reaction.timerNow': 'المؤقت',
+	'reaction.deltaYou': 'فارقك (cs)',
+	'reaction.deltaOpp': 'فارق الخصم (cs)',
 
 	'who.me': 'أنت',
 	'who.opp': 'الخصم',
@@ -185,6 +200,10 @@ const dict: Dict = {
 	'tool.subtitle.wheel': 'عجلة خيارات مخصصة',
 	'tool.subtitle.draw': 'اختيار عشوائي وخلط',
 	'tool.subtitle.reaction': 'عد تنازلي أحمر، واضغط عند الأخضر',
+
+    'darkMode.enable': 'تفعيل الوضع المظلم',
+    'darkMode.disable': 'تعطيل الوضع المظلم',
 };
 
 export default dict;
+

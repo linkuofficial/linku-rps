@@ -38,7 +38,7 @@ export default function GameCoin({ state, send, exportCsv, sendEmoji, sendChat, 
 
             <button
                 onClick={() => send({ type: 'coin_flip' })}
-                className="w-full py-3 bg-black text-white font-medium hover:bg-primary-container transition-colors mb-4"
+                className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container transition-colors mb-4"
             >
                 {t('coin.flip')}
             </button>
@@ -46,7 +46,7 @@ export default function GameCoin({ state, send, exportCsv, sendEmoji, sendChat, 
             <button
                 onClick={exportCsv}
                 disabled={!state.roomId}
-                className="w-full py-2 border border-black text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>

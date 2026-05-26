@@ -32,7 +32,7 @@ export const server = http.createServer(app);
 
 const ALLOWED_ORIGINS = (
     process.env.ALLOWED_ORIGINS ||
-    'http://localhost:5173,http://127.0.0.1:5173,https://rps.linku.tech'
+    'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,https://rps.linku.tech'
 )
     .split(',')
     .map((s) => s.trim());
@@ -41,6 +41,12 @@ const RECONNECT_GRACE_MS = 30000;
 const WS_HEARTBEAT_INTERVAL_MS = 25000;
 const WS_MAX_PAYLOAD_BYTES = 16 * 1024;
 const EXPORT_ADMIN_KEY = process.env.EXPORT_ADMIN_KEY?.trim() || null;
+const F1_LIGHT_STEP_MS = 1000;
+const F1_LIGHT_COUNT = 5;
+const F1_FULL_LIGHT_HOLD_MIN_MS = 200;
+const F1_FULL_LIGHT_HOLD_MAX_MS = 2000;
+const TARGET_COUNTDOWN_MIN_MS = 1200;
+const TARGET_COUNTDOWN_SPAN_MS = 2600;
 const TOOL_IDS: ToolId[] = ['rps', 'coin', 'dice', 'wheel', 'draw', 'reaction'];
 const PROCESS_STARTED_AT = Date.now();
 
@@ -1116,7 +1122,9 @@ wss.on('connection', (ws) => {
 
                 if (reaction.ready.a && (room.b ? reaction.ready.b : true)) {
                     const reactionRoomId = roomId;
-                    const delay = 1200 + Math.floor(Math.random() * 2600);
+                    const delay = reaction.mode === 'f1'
+                        ? F1_LIGHT_COUNT * F1_LIGHT_STEP_MS + F1_FULL_LIGHT_HOLD_MIN_MS + Math.floor(Math.random() * (F1_FULL_LIGHT_HOLD_MAX_MS - F1_FULL_LIGHT_HOLD_MIN_MS + 1))
+                        : TARGET_COUNTDOWN_MIN_MS + Math.floor(Math.random() * TARGET_COUNTDOWN_SPAN_MS);
                     reaction.phase = 'countdown';
                     reaction.targetCentis = reaction.mode === 'target' ? pickReactionTargetCentis() : null;
                     reaction.countdownMs = delay;
@@ -1317,7 +1325,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!room || !room.a) {
                     invalidGameState('chat_room_not_ready');
                     return;
                 }
@@ -1346,7 +1354,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.a || !room.b) {
+                if (!room || !room.a) {
                     invalidGameState('emoji_room_not_ready');
                     return;
                 }

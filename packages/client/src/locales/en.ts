@@ -132,6 +132,12 @@ const dict: Dict = {
     'wheel.addOption': 'Add option',
     'wheel.shuffle': 'Shuffle options',
     'wheel.spin': 'Spin wheel',
+    'wheel.editOptions': 'Edit options',
+    'wheel.editTitle': 'Edit options',
+    'wheel.closeEditor': 'Close editor',
+    'wheel.showImageField': 'Show image field',
+    'wheel.hideImageField': 'Hide image field',
+    'wheel.advanced': 'Advanced',
 
     'draw.result': 'Draw result',
     'draw.shuffledDone': 'Shuffled',
@@ -166,6 +172,15 @@ const dict: Dict = {
     'reaction.youMs': 'Your reaction (ms)',
     'reaction.oppMs': 'Opponent reaction (ms)',
     'reaction.falseStartBy': 'False start by {who}',
+    'reaction.modePickerHint': 'Choose mode – both players must agree',
+    'reaction.modeF1Label': 'F1 Start',
+    'reaction.modeF1Desc': 'Press as fast as possible when the light turns green',
+    'reaction.modeTargetLabel': 'Target Time',
+    'reaction.modeTargetDesc': 'Press closest to the target time to win',
+    'reaction.targetValue': 'Target (s)',
+    'reaction.timerNow': 'Timer',
+    'reaction.deltaYou': 'Your delta (cs)',
+    'reaction.deltaOpp': 'Opp delta (cs)',
 
     'who.me': 'You',
     'who.opp': 'Opponent',
@@ -185,6 +200,9 @@ const dict: Dict = {
     'tool.subtitle.wheel': 'Custom roulette choices',
     'tool.subtitle.draw': 'Random picks and shuffle',
     'tool.subtitle.reaction': 'Red light countdown, press on green',
+
+    'darkMode.enable': 'Enable dark mode',
+    'darkMode.disable': 'Disable dark mode',
 };
 
 export default dict;

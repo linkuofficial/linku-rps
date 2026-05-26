@@ -53,7 +53,7 @@ export default function LanguageSwitcher({ compact = false }: Props) {
                 <button
                     type="button"
                     onClick={() => setOpen((prev) => !prev)}
-                    className="inline-flex items-center gap-2 border border-border bg-white px-3 py-2 text-label-sm text-on-surface transition-colors hover:bg-surface-alt"
+                    className="inline-flex items-center gap-2 border border-border bg-surface-container-lowest px-3 py-2 text-label-sm text-on-surface transition-colors hover:bg-surface-alt"
                     aria-haspopup="menu"
                     aria-expanded={open}
                 >
@@ -62,7 +62,7 @@ export default function LanguageSwitcher({ compact = false }: Props) {
                 </button>
 
                 {open && (
-                    <div className="absolute bottom-[calc(100%+10px)] right-0 z-30 w-[min(92vw,320px)] rounded-sm border border-border bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.12)]" role="menu">
+                    <div className="absolute bottom-[calc(100%+10px)] right-0 z-30 w-[min(92vw,320px)] rounded-sm border border-border bg-surface-container-lowest p-2 shadow-[0_10px_30px_rgba(0,0,0,0.12)]" role="menu">
                         <div className="grid grid-cols-2 gap-1">
                             {(['en', 'zh', 'ja', 'fr', 'es', 'ar', 'ru'] as const).map((code) => (
                                 <button
@@ -73,8 +73,8 @@ export default function LanguageSwitcher({ compact = false }: Props) {
                                         setOpen(false);
                                     }}
                                     className={`flex items-center justify-between rounded-sm border px-2 py-2 text-label-sm transition-colors ${LANGUAGE_FONT_CLASS[code]} ${locale === code
-                                        ? 'border-black bg-black text-white'
-                                        : 'border-border bg-white text-on-surface-variant hover:bg-surface-alt'
+                                        ? 'border-primary bg-primary text-on-primary'
+                                        : 'border-border bg-surface-container-lowest text-on-surface-variant hover:bg-surface-alt'
                                         }`}
                                     aria-pressed={locale === code}
                                     role="menuitemradio"
@@ -94,14 +94,14 @@ export default function LanguageSwitcher({ compact = false }: Props) {
     }
 
     return (
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-white p-1">
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-surface-container-lowest p-1">
             {(['en', 'zh', 'ja', 'fr', 'es', 'ar', 'ru'] as const).map((code) => (
                 <button
                     key={code}
                     type="button"
                     onClick={() => setLocale(code)}
                     className={`min-w-0 px-2 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${LANGUAGE_FONT_CLASS[code]} ${locale === code
-                        ? 'bg-black text-white'
+                        ? 'bg-primary text-on-primary'
                         : 'text-on-surface-variant hover:bg-surface-alt'
                         }`}
                     aria-pressed={locale === code}

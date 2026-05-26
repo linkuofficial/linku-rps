@@ -2,12 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design token variables ───────────────────────────────────────── */
+:root {
+  --color-surface: 249 249 249;
+  --color-surface-dim: 218 218 218;
+  --color-surface-bright: 249 249 249;
+  --color-surface-container-lowest: 255 255 255;
+  --color-surface-container-low: 243 243 244;
+  --color-surface-container: 238 238 238;
+  --color-surface-container-high: 232 232 232;
+  --color-surface-container-highest: 226 226 226;
+  --color-on-surface: 26 28 28;
+  --color-on-surface-variant: 76 69 70;
+  --color-outline: 126 117 118;
+  --color-outline-variant: 207 196 197;
+  --color-primary: 0 0 0;
+  --color-primary-container: 27 27 27;
+  --color-on-primary: 255 255 255;
+  --color-on-primary-container: 132 132 132;
+  --color-secondary: 93 94 102;
+  --color-secondary-container: 227 225 236;
+  --color-on-secondary: 255 255 255;
+  --color-on-secondary-container: 99 100 108;
+  --color-error: 186 26 26;
+  --color-error-container: 255 218 214;
+  --color-on-error: 255 255 255;
+  --color-on-error-container: 147 0 10;
+  --color-border: 228 228 231;
+  --color-surface-alt: 244 244 245;
+}
+
+.dark {
+  --color-surface: 18 18 18;
+  --color-surface-dim: 10 10 10;
+  --color-surface-bright: 24 24 24;
+  --color-surface-container-lowest: 26 26 26;
+  --color-surface-container-low: 18 18 18;
+  --color-surface-container: 30 30 30;
+  --color-surface-container-high: 38 38 38;
+  --color-surface-container-highest: 46 46 46;
+  --color-on-surface: 225 227 227;
+  --color-on-surface-variant: 147 142 143;
+  --color-outline: 147 142 143;
+  --color-outline-variant: 73 69 78;
+  --color-primary: 225 227 227;
+  --color-primary-container: 200 200 200;
+  --color-on-primary: 26 28 28;
+  --color-on-primary-container: 48 48 48;
+  --color-secondary: 138 138 146;
+  --color-secondary-container: 42 40 53;
+  --color-on-secondary: 26 28 28;
+  --color-on-secondary-container: 160 158 168;
+  --color-error: 255 180 171;
+  --color-error-container: 147 0 10;
+  --color-on-error: 105 0 5;
+  --color-on-error-container: 255 218 214;
+  --color-border: 63 63 70;
+  --color-surface-alt: 28 28 30;
+}
+
 body {
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f9f9f9;
-  color: #1a1c1c;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-on-surface));
 }
 
 html[data-locale='en'],
@@ -156,6 +215,7 @@ textarea {
 }
 
 @media (max-width: 768px) {
+
   button,
   input,
   select,

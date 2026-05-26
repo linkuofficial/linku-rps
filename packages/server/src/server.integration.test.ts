@@ -163,7 +163,7 @@ describe('websocket rate limiting integration', () => {
         const green = await waitForMessage(
             host,
             (msg): msg is Extract<ServerMessage, { type: 'reaction_state' }> => msg.type === 'reaction_state' && msg.phase === 'green',
-            5000,
+            10000,
         );
         expect(green.by).toBe('system');
 
@@ -174,7 +174,7 @@ describe('websocket rate limiting integration', () => {
         expect(result.reactionMs.b).toBeNull();
 
         await closeClient(host);
-    });
+    }, 15000);
 
     it('supports solo target mode and returns target delta payload', async () => {
         const host = await openClient();

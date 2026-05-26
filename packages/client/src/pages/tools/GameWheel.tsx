@@ -236,7 +236,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
 
             <button
                 onClick={() => setIsEditingWheel(true)}
-                className="mb-4 w-full border border-black bg-white px-4 py-3 text-label-md font-medium text-on-surface transition-colors hover:bg-surface-alt"
+                className="mb-4 w-full border border-primary bg-surface-container-lowest px-4 py-3 text-label-md font-medium text-on-surface transition-colors hover:bg-surface-alt"
             >
                 {'\u2699\uFE0F '}{t('wheel.editOptions')}
             </button>
@@ -244,7 +244,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
             <button
                 onClick={handleWheelSpin}
                 disabled={!hasEnoughWheelOptions}
-                className="mb-4 w-full bg-black px-4 py-5 text-lg font-semibold text-white transition-colors hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed"
+                className="mb-4 w-full bg-primary px-4 py-5 text-lg font-semibold text-on-primary transition-colors hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 <span key={wheelSpinPulseKey} className="wheel-spin-label">
                     {t('wheel.spin')}
@@ -301,7 +301,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="wheel-edit-title"
-                            className="relative z-10 w-full max-w-2xl border border-border bg-white shadow-[0_16px_56px_rgba(0,0,0,0.22)]"
+                            className="relative z-10 w-full max-w-2xl border border-border bg-surface-container-lowest shadow-[0_16px_56px_rgba(0,0,0,0.22)]"
                         >
                             <div className="flex items-center justify-between border-b border-border px-4 py-3">
                                 <div>
@@ -313,7 +313,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                 <button
                                     onClick={closeWheelEditor}
                                     aria-label={t('wheel.closeEditor')}
-                                    className="h-9 w-9 border border-border text-xl leading-none text-on-surface-variant transition-colors hover:border-black hover:text-on-surface"
+                                    className="h-9 w-9 border border-border text-xl leading-none text-on-surface-variant transition-colors hover:border-on-surface hover:text-on-surface"
                                 >
                                     \u00D7
                                 </button>
@@ -336,13 +336,13 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                                         type="text"
                                                         value={opt.label}
                                                         onChange={(e) => updateWheelOption(opt.id, { label: e.target.value })}
-                                                        className="min-w-0 flex-1 border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:border-black transition-colors"
+                                                        className="min-w-0 flex-1 border border-border bg-surface-container-lowest px-3 py-2 text-on-surface text-sm focus:outline-none focus:border-on-surface transition-colors"
                                                         placeholder={t('wheel.optionPlaceholder')}
                                                     />
                                                     <button
                                                         onClick={() => toggleWheelImageInput(opt.id)}
                                                         aria-label={imageInputOpen ? t('wheel.hideImageField') : t('wheel.showImageField')}
-                                                        className={`h-9 w-9 shrink-0 border transition-colors ${imageInputOpen ? 'border-black bg-black text-white' : 'border-border bg-white text-on-surface-variant hover:border-black hover:text-on-surface'}`}
+                                                        className={`h-9 w-9 shrink-0 border transition-colors ${imageInputOpen ? 'border-primary bg-primary text-on-primary' : 'border-border bg-surface-container-lowest text-on-surface-variant hover:border-on-surface hover:text-on-surface'}`}
                                                     >
                                                         <Icon name="image" className="mx-auto text-[18px]" />
                                                     </button>
@@ -350,7 +350,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                                         onClick={() => removeWheelOption(opt.id)}
                                                         disabled={wheelOptions.length <= 2}
                                                         aria-label={t('wheel.delete')}
-                                                        className="h-9 w-9 shrink-0 border border-border bg-white text-on-surface-variant transition-colors hover:border-black hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-30"
+                                                        className="h-9 w-9 shrink-0 border border-border bg-surface-container-lowest text-on-surface-variant transition-colors hover:border-on-surface hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-30"
                                                     >
                                                         <Icon name="delete" className="mx-auto text-[18px]" />
                                                     </button>
@@ -368,7 +368,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                                                 type="url"
                                                                 value={opt.imageUrl ?? ''}
                                                                 onChange={(e) => updateWheelOption(opt.id, { imageUrl: e.target.value })}
-                                                                className="w-full border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:border-black transition-colors"
+                                                                className="w-full border border-border bg-surface-container-lowest px-3 py-2 text-on-surface text-sm focus:outline-none focus:border-on-surface transition-colors"
                                                                 placeholder={t('wheel.imagePlaceholder')}
                                                             />
                                                         </motion.div>
@@ -380,10 +380,10 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                 </div>
 
                                 <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <button onClick={addWheelOption} className="w-full border border-black py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-alt">
+                                    <button onClick={addWheelOption} className="w-full border border-primary py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-alt">
                                         {t('wheel.addOption')}
                                     </button>
-                                    <button onClick={shuffleWheelOptions} className="w-full border border-black py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-alt">
+                                    <button onClick={shuffleWheelOptions} className="w-full border border-primary py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-alt">
                                         {t('wheel.shuffle')}
                                     </button>
                                 </div>

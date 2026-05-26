@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -8,51 +9,51 @@ export default {
       },
       colors: {
         surface: {
-          DEFAULT: '#f9f9f9',
-          dim: '#dadada',
-          bright: '#f9f9f9',
+          DEFAULT: 'rgb(var(--color-surface) / <alpha-value>)',
+          dim: 'rgb(var(--color-surface-dim) / <alpha-value>)',
+          bright: 'rgb(var(--color-surface-bright) / <alpha-value>)',
           container: {
-            lowest: '#ffffff',
-            low: '#f3f3f4',
-            DEFAULT: '#eeeeee',
-            high: '#e8e8e8',
-            highest: '#e2e2e2',
+            lowest: 'rgb(var(--color-surface-container-lowest) / <alpha-value>)',
+            low: 'rgb(var(--color-surface-container-low) / <alpha-value>)',
+            DEFAULT: 'rgb(var(--color-surface-container) / <alpha-value>)',
+            high: 'rgb(var(--color-surface-container-high) / <alpha-value>)',
+            highest: 'rgb(var(--color-surface-container-highest) / <alpha-value>)',
           },
         },
         'on-surface': {
-          DEFAULT: '#1a1c1c',
-          variant: '#4c4546',
+          DEFAULT: 'rgb(var(--color-on-surface) / <alpha-value>)',
+          variant: 'rgb(var(--color-on-surface-variant) / <alpha-value>)',
         },
         outline: {
-          DEFAULT: '#7e7576',
-          variant: '#cfc4c5',
+          DEFAULT: 'rgb(var(--color-outline) / <alpha-value>)',
+          variant: 'rgb(var(--color-outline-variant) / <alpha-value>)',
         },
         primary: {
-          DEFAULT: '#000000',
-          container: '#1b1b1b',
+          DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
+          container: 'rgb(var(--color-primary-container) / <alpha-value>)',
         },
         'on-primary': {
-          DEFAULT: '#ffffff',
-          container: '#848484',
+          DEFAULT: 'rgb(var(--color-on-primary) / <alpha-value>)',
+          container: 'rgb(var(--color-on-primary-container) / <alpha-value>)',
         },
         secondary: {
-          DEFAULT: '#5d5e66',
-          container: '#e3e1ec',
+          DEFAULT: 'rgb(var(--color-secondary) / <alpha-value>)',
+          container: 'rgb(var(--color-secondary-container) / <alpha-value>)',
         },
         'on-secondary': {
-          DEFAULT: '#ffffff',
-          container: '#63646c',
+          DEFAULT: 'rgb(var(--color-on-secondary) / <alpha-value>)',
+          container: 'rgb(var(--color-on-secondary-container) / <alpha-value>)',
         },
         error: {
-          DEFAULT: '#ba1a1a',
-          container: '#ffdad6',
+          DEFAULT: 'rgb(var(--color-error) / <alpha-value>)',
+          container: 'rgb(var(--color-error-container) / <alpha-value>)',
         },
         'on-error': {
-          DEFAULT: '#ffffff',
-          container: '#93000a',
+          DEFAULT: 'rgb(var(--color-on-error) / <alpha-value>)',
+          container: 'rgb(var(--color-on-error-container) / <alpha-value>)',
         },
-        border: '#E4E4E7',
-        'surface-alt': '#F4F4F5',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
+        'surface-alt': 'rgb(var(--color-surface-alt) / <alpha-value>)',
       },
     },
   },

@@ -3,6 +3,7 @@ import { motion } from '../lib/motion-lite';
 import { Link } from 'wouter';
 import type { ToolId } from '@rps/shared';
 import { useI18n } from '../i18n';
+import { useDarkMode } from '../hooks/useDarkMode';
 import LanguageSwitcherCompact from '../components/LanguageSwitcherCompact';
 import Icon from '../components/Icon';
 import type { IconName } from '../components/Icon';
@@ -76,7 +77,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="flex min-h-screen flex-col overflow-hidden bg-white"
+            className="flex min-h-screen flex-col overflow-hidden bg-surface"
         >
             <main className="tool-selector-main mx-auto flex w-full max-w-[1440px] flex-1 flex-col justify-center px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 lg:py-10">
                 <div className="tool-selector-content">
@@ -97,7 +98,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                 onClick={() => tool.enabled && onSelect(tool.id)}
                                 disabled={!tool.enabled}
                                 className={`group flex aspect-square min-h-[136px] min-w-[136px] flex-shrink-0 flex-col items-center justify-center border p-4 text-center transition-colors sm:min-h-[160px] sm:min-w-[160px] sm:p-5 lg:min-h-[176px] lg:min-w-[176px] xl:min-h-[188px] xl:min-w-[188px] ${isRtl ? 'rtl' : ''} ${tool.enabled
-                                    ? 'border-border bg-white hover:border-black'
+                                    ? 'border-border bg-surface-container-lowest hover:border-on-surface'
                                     : 'border-border bg-surface-alt text-on-surface-variant cursor-not-allowed'
                                     }`}
                             >
@@ -121,7 +122,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="border-2 border-black bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-3 text-center cursor-pointer"
+                                    className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-3 text-center cursor-pointer"
                                     onClick={() => { onClearError?.(); inputRef.current?.focus(); }}
                                 >
                                     {translateError(error.code, error.message)}
@@ -139,12 +140,12 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                     disabled={!!pendingJoinCode}
                                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                                     onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                                    className="flex-1 min-w-0 px-4 py-3 bg-white border border-border text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-black transition-colors disabled:opacity-50"
+                                    className="flex-1 min-w-0 px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors disabled:opacity-50"
                                 />
                                 <button
                                     onClick={handleJoin}
                                     disabled={!/^[1-6]\d{3}$/.test(joinCode.trim()) || !!pendingJoinCode}
-                                    className="shrink-0 px-5 py-3 bg-white border border-black text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="shrink-0 px-5 py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {pendingJoinCode
                                         ? <><span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />{t('toolSelector.joining')}</>
@@ -157,7 +158,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                 </div>
             </main>
 
-            <footer className="border-t border-outline-variant bg-white">
+            <footer className="border-t border-outline-variant bg-surface-container-lowest">
                 <div className={`mx-auto w-full max-w-[1440px] px-4 py-3 sm:px-6 md:py-2 lg:px-10 ${isRtl ? 'md:text-right' : 'md:text-left'}`}>
                     <div className="flex flex-col items-center gap-3 text-center md:grid md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-4 md:text-left">
                         <div className="text-label-sm text-secondary md:justify-self-start">
@@ -172,13 +173,28 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                 {t('common.copyrightNotice')}
                             </Link>
                         </div>
-                        <div className={`w-full md:w-auto md:max-w-[320px] ${isRtl ? 'md:justify-self-start' : 'md:justify-self-end'}`}>
+                        <div className={`w-full md:w-auto md:max-w-[320px] flex items-center gap-2 ${isRtl ? 'md:justify-self-start' : 'md:justify-self-end'}`}>
+                            <DarkModeToggle />
                             <LanguageSwitcherCompact />
                         </div>
                     </div>
                 </div>
             </footer>
         </motion.div>
+    );
+}
+
+function DarkModeToggle() {
+    const { t } = useI18n();
+    const { isDark, toggle } = useDarkMode();
+    return (
+        <button
+            onClick={toggle}
+            aria-label={isDark ? t('darkMode.disable') : t('darkMode.enable')}
+            className="flex shrink-0 items-center text-on-surface-variant hover:text-on-surface transition-colors"
+        >
+            <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-[20px]" />
+        </button>
     );
 }
 

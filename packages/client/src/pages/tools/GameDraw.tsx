@@ -47,24 +47,24 @@ export default function GameDraw({ state, send, exportCsv, sendEmoji }: GameTool
                 )}
             </div>
 
-            <div className="border border-border bg-white p-4 mb-4">
+            <div className="border border-border bg-surface-container-lowest p-4 mb-4">
                 <label className="text-label-sm text-on-surface font-medium">{t('draw.names')}</label>
                 <textarea
                     value={drawNamesText}
                     onChange={(e) => setDrawNamesText(e.target.value)}
                     rows={6}
-                    className="mt-2 w-full border border-border px-3 py-2 text-sm focus:outline-none focus:border-black transition-colors"
+                    className="mt-2 w-full border border-border bg-surface-container-lowest text-on-surface px-3 py-2 text-sm focus:outline-none focus:border-on-surface transition-colors"
                 />
                 <div className="grid grid-cols-2 gap-2 mt-3 mb-3">
                     <button
                         onClick={() => setDrawMode('pick')}
-                        className={`py-2 text-sm font-medium transition-colors ${drawMode === 'pick' ? 'bg-black text-white' : 'bg-surface-alt text-on-surface hover:bg-surface-container-high'}`}
+                        className={`py-2 text-sm font-medium transition-colors ${drawMode === 'pick' ? 'bg-primary text-on-primary' : 'bg-surface-alt text-on-surface hover:bg-surface-container-high'}`}
                     >
                         {t('draw.modePick')}
                     </button>
                     <button
                         onClick={() => setDrawMode('shuffle')}
-                        className={`py-2 text-sm font-medium transition-colors ${drawMode === 'shuffle' ? 'bg-black text-white' : 'bg-surface-alt text-on-surface hover:bg-surface-container-high'}`}
+                        className={`py-2 text-sm font-medium transition-colors ${drawMode === 'shuffle' ? 'bg-primary text-on-primary' : 'bg-surface-alt text-on-surface hover:bg-surface-container-high'}`}
                     >
                         {t('draw.modeShuffle')}
                     </button>
@@ -78,13 +78,13 @@ export default function GameDraw({ state, send, exportCsv, sendEmoji }: GameTool
                     />
                     {t('draw.noRepeat')}
                 </label>
-                <button onClick={runDraw} className="w-full py-3 bg-black text-white font-medium hover:bg-primary-container transition-colors">
+                <button onClick={runDraw} className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container transition-colors">
                     {t('draw.run')}
                 </button>
             </div>
 
             {state.drawResult && (
-                <div className="border border-border bg-white p-4 mb-4">
+                <div className="border border-border bg-surface-container-lowest p-4 mb-4">
                     <div className="mb-2 flex items-center justify-between text-label-md font-semibold text-on-surface">
                         <span>{t('draw.ordered')}</span>
                         {state.drawResult.mode === 'pick' && state.drawResult.noRepeat && (
@@ -107,7 +107,7 @@ export default function GameDraw({ state, send, exportCsv, sendEmoji }: GameTool
             <button
                 onClick={exportCsv}
                 disabled={!state.roomId}
-                className="w-full py-2 border border-black text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>
