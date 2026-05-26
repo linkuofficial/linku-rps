@@ -578,6 +578,10 @@ export const resolveIncomingToolForTest = resolveIncomingTool;
 
 let emojiIdCounter = 0;
 
+function safeInt(value: unknown, fallback: number): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 export function useGameState() {
     const [state, dispatch] = useReducer(reducer, initialState);
 
@@ -586,19 +590,19 @@ export function useGameState() {
             case 'room_created': {
                 const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
                 if (!tool) break;
-                dispatch({ type: 'ROOM_CREATED', roomId: msg.roomId, bestOf: msg.bestOf, tool, reconnectToken: msg.reconnectToken });
+                dispatch({ type: 'ROOM_CREATED', roomId: msg.roomId, bestOf: safeInt(msg.bestOf, 3), tool, reconnectToken: msg.reconnectToken });
                 break;
             }
             case 'joined': {
                 const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
                 if (!tool) break;
-                dispatch({ type: 'JOINED', roomId: msg.roomId, bestOf: msg.bestOf, tool, reconnectToken: msg.reconnectToken });
+                dispatch({ type: 'JOINED', roomId: msg.roomId, bestOf: safeInt(msg.bestOf, 3), tool, reconnectToken: msg.reconnectToken });
                 break;
             }
             case 'game_start': {
                 const tool = resolveIncomingTool(msg.tool, state.roomId, state.tool);
                 if (!tool) break;
-                dispatch({ type: 'GAME_START', you: msg.you, bestOf: msg.bestOf, tool });
+                dispatch({ type: 'GAME_START', you: msg.you, bestOf: safeInt(msg.bestOf, 3), tool });
                 break;
             }
             case 'reconnect_ok': {
@@ -607,7 +611,7 @@ export function useGameState() {
                 dispatch({
                     type: 'RECONNECT_OK',
                     roomId: msg.roomId,
-                    bestOf: msg.bestOf,
+                    bestOf: safeInt(msg.bestOf, 3),
                     tool,
                     you: msg.you,
                     phase: msg.phase,

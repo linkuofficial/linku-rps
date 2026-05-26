@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useRoute } from 'wouter';
+import type { ToolId } from '@rps/shared';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameState } from '../hooks/useGameState';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -10,11 +11,16 @@ import { useI18n } from '../i18n';
 import LanguageSwitcherCompact from '../components/LanguageSwitcherCompact';
 import Icon from '../components/Icon';
 
+const TOOL_PREFIXES: Record<string, ToolId> = {
+  '1': 'rps', '2': 'coin', '3': 'wheel', '4': 'dice', '5': 'draw', '6': 'reaction',
+};
+
 export default function JoinPage() {
-  const { t, translateError } = useI18n();
+  const { t, toolName, translateError } = useI18n();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const [, params] = useRoute('/join/:code');
-  const code = params?.code;
+  const code = params?.code?.toUpperCase();
+  const inferredTool: ToolId | null = code ? (TOOL_PREFIXES[code.charAt(0)] ?? null) : null;
   const [, navigate] = useLocation();
   const { state, dispatch, handleMessage } = useGameState();
   const stateRef = useRef(state);
@@ -77,9 +83,34 @@ export default function JoinPage() {
           <LanguageSwitcherCompact />
         </div>
         {state.error ? (
-          <div><p className="text-red-500 mb-4">{translateError(state.error.code, state.error.message)}</p>
-            <button onClick={() => navigate('/')} className="px-6 py-2 bg-primary text-on-primary font-medium">{t('common.backHome')}</button></div>
-        ) : (<div className="text-gray-400">{t('join.joining')}</div>)}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-6 text-center"
+            >
+              {translateError(state.error.code, state.error.message)}
+            </motion.div>
+            <button onClick={() => navigate('/')} className="flex items-center gap-1 mx-auto text-label-sm text-on-surface-variant hover:text-on-surface transition-colors">
+              <Icon name="arrow_back" className="text-[16px]" />{t('common.backHome')}
+            </button>
+          </div>
+        ) : (
+          <div>
+            {inferredTool && (
+              <>
+                <h1 className="text-headline-lg text-on-surface mb-3">{toolName(inferredTool)}</h1>
+                <div dir="ltr" className="text-headline-md font-mono tracking-[0.35em] text-on-surface-variant mb-8">{code}</div>
+              </>
+            )}
+            <div className="flex items-center justify-center gap-2 mb-8">
+              <span className="inline-block w-3 h-3 border-2 border-on-surface-variant border-t-transparent rounded-full animate-spin" />
+              <span className="text-label-md text-on-surface-variant">{t('join.joining')}</span>
+            </div>
+            <button onClick={() => navigate('/')} className="flex items-center gap-1 mx-auto text-label-sm text-on-surface-variant hover:text-on-surface transition-colors">
+              <Icon name="arrow_back" className="text-[16px]" />{t('common.backHome')}
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );

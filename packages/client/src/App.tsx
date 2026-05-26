@@ -87,7 +87,7 @@ export default function App() {
       <div className={`w-full ${isToolSelector ? 'min-h-[100dvh]' : 'max-w-md pt-2 sm:pt-0'}`}>
         {!isToolSelector && (
           <div className="mb-3 flex items-center justify-between">
-            {state.phase === 'lobby' ? (
+            {(state.phase === 'lobby' || state.phase === 'waiting') ? (
               <button
                 onClick={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
                 className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"

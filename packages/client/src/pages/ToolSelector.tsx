@@ -58,8 +58,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
 
     const handleJoin = () => {
         const code = joinCode.trim().toUpperCase();
-        if (!code || pendingJoinCode) return;
-        if (!/^[1-6]\d{3}$/.test(code)) return;
+        if (!code || code.length < 4 || pendingJoinCode) return;
         onJoinByCode?.(code);
     };
 
@@ -133,7 +132,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                 <input
                                     ref={inputRef}
                                     type="text"
-                                    maxLength={6}
+                                    maxLength={4}
                                     placeholder={t('lobby.joinCodePlaceholder')}
                                     value={joinCode}
                                     dir="ltr"
@@ -144,7 +143,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                 />
                                 <button
                                     onClick={handleJoin}
-                                    disabled={!/^[1-6]\d{3}$/.test(joinCode.trim()) || !!pendingJoinCode}
+                                    disabled={joinCode.trim().length < 4 || !!pendingJoinCode}
                                     className="shrink-0 px-5 py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {pendingJoinCode
