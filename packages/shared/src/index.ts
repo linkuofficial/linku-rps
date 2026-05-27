@@ -289,6 +289,7 @@ export interface ReactionStateMsg {
   mode: ReactionMode;
   targetCentis: number | null;
   readyBy: PlayerSlot[];
+  pressedBy?: PlayerSlot[];
   countdownMs: number | null;
   greenAt: number | null;
   by: PlayerSlot | 'system';

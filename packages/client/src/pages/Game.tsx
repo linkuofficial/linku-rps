@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type TouchEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type TouchEvent } from 'react';
 import { motion } from '../lib/motion-lite';
 import type { ClientMessage } from '@rps/shared';
 import type { GameAction, GameState } from '../hooks/useGameState';
@@ -8,12 +8,12 @@ import { useI18n } from '../i18n';
 import type { GameToolProps } from './tools/types';
 import './game.css';
 
-const GameRps = lazy(() => import('./tools/GameRps'));
-const GameCoin = lazy(() => import('./tools/GameCoin'));
-const GameDice = lazy(() => import('./tools/GameDice'));
-const GameWheel = lazy(() => import('./tools/GameWheel'));
-const GameDraw = lazy(() => import('./tools/GameDraw'));
-const GameReaction = lazy(() => import('./tools/GameReaction'));
+import GameRps from './tools/GameRps';
+import GameCoin from './tools/GameCoin';
+import GameDice from './tools/GameDice';
+import GameWheel from './tools/GameWheel';
+import GameDraw from './tools/GameDraw';
+import GameReaction from './tools/GameReaction';
 
 type GestureMode = 'minimal' | 'off';
 
@@ -93,7 +93,9 @@ export default function Game({ state, send, dispatch }: Props) {
         const headers = ['timestamp_iso', 'room_id', 'tool', 'event', 'round', 'actor', 'result', 'score_a', 'score_b', 'details'];
         const escape = (v: string | number | null) => {
             if (v === null || v === undefined) return '';
-            return `"${String(v).replace(/"/g, '""')}"`;
+            const text = String(v).replace(/"/g, '""');
+            const safe = /^[=+\-@|\t]/.test(text) ? `\t${text}` : text;
+            return `"${safe}"`;
         };
         const rows = state.history.map((e) => [
             new Date(e.timestamp).toISOString(), e.roomId, e.tool, e.event,
@@ -141,19 +143,11 @@ export default function Game({ state, send, dispatch }: Props) {
         </button>
     ) : null;
 
-    const invitePanel = inviteUrl ? (
-        <button
-            onClick={copyInvite}
-            className={`room-status-pill mb-4 inline-flex max-w-full items-center gap-2 text-left ${isRtl ? 'text-right' : 'text-left'}`}
-        >
+    const invitePanel = state.roomId ? (
+        <div className="room-status-pill mb-4 inline-flex max-w-full items-center gap-2">
             <span className="text-[11px] uppercase tracking-[0.14em] text-on-surface-variant">ROOM</span>
             <span dir="ltr" className="max-w-[128px] truncate font-mono text-xs tracking-[0.2em] text-on-surface sm:max-w-[180px]">{state.roomId}</span>
-            <span className={`shrink-0 text-[11px] font-medium ${inviteCopied ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-                {inviteCopied ? t('common.copied') : t('common.copyInvite')}
-            </span>
-            <div className="h-4 w-px bg-border" aria-hidden="true" />
-            <Icon name={inviteCopied ? 'check' : 'inventory_2'} className="text-sm text-on-surface-variant" />
-        </button>
+        </div>
     ) : null;
 
     if (!state.tool) {
@@ -183,7 +177,7 @@ export default function Game({ state, send, dispatch }: Props) {
             {errorBanner}
             {invitePanel}
             <EmojiFloats emojis={state.emojis} mySlot={state.mySlot!} />
-            <Suspense fallback={null}>{child}</Suspense>
+            {child}
         </motion.div>
     );
 

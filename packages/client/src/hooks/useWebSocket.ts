@@ -30,6 +30,7 @@ export function useWebSocket(onMessage: MessageHandler, getReconnectMessage?: Re
   const reconnectAttemptsRef = useRef(0);
   const hasConnectedRef = useRef(false);
   const manualCloseRef = useRef(false);
+  const connectIdRef = useRef(0);
 
   const [connected, setConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
@@ -51,6 +52,7 @@ export function useWebSocket(onMessage: MessageHandler, getReconnectMessage?: Re
 
     setConnectionState(hasConnectedRef.current ? 'reconnecting' : 'connecting');
 
+    const myId = ++connectIdRef.current;
     const ws = new WebSocket(socketUrl);
     wsRef.current = ws;
 
@@ -78,6 +80,9 @@ export function useWebSocket(onMessage: MessageHandler, getReconnectMessage?: Re
         setConnectionState('disconnected');
         return;
       }
+
+      // Stale socket: a newer connect() has already taken over.
+      if (myId !== connectIdRef.current) return;
 
       setConnectionState('reconnecting');
       const nextAttempt = reconnectAttemptsRef.current + 1;

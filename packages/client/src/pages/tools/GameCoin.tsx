@@ -11,7 +11,7 @@ export default function GameCoin({ state, send, exportCsv, sendEmoji, sendChat, 
     const coinEmoji = state.coinResult?.result === 'heads'
         ? '\uD83E\uDE99'
         : state.coinResult?.result === 'tails'
-            ? '\uD83E\uDE99'
+            ? '\uD83C\uDF11'
             : '\u2753';
     const coinLabel = state.coinResult?.result === 'heads'
         ? t('coin.heads')

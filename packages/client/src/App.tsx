@@ -5,14 +5,14 @@ import { useDarkMode } from './hooks/useDarkMode';
 import LanguageSwitcherCompact from './components/LanguageSwitcherCompact';
 import Icon from './components/Icon';
 import { useI18n } from './i18n';
+import ToolSelector from './pages/ToolSelector';
+import Game from './pages/Game';
 
 const Lobby = lazy(() => import('./pages/Lobby'));
 const Waiting = lazy(() => import('./pages/Waiting'));
-const Game = lazy(() => import('./pages/Game'));
 const Finished = lazy(() => import('./pages/Finished'));
-const ToolSelector = lazy(() => import('./pages/ToolSelector'));
 
-const RECONNECT_STORAGE_KEY = 'linku-rps-reconnect';
+import { RECONNECT_STORAGE_KEY } from './lib/storage-keys';
 
 interface ReconnectSnapshot {
   roomId: string;
@@ -79,17 +79,27 @@ export default function App() {
     }
   }, [state.pendingJoinCode, connected, send]);
 
-  const pageFallback = <div className="h-48 border border-border bg-surface-alt" aria-hidden="true" />;
+  const pageFallback = null;
   const isToolSelector = state.phase === 'tool_select';
 
+  // Preload lazy pages immediately so state transitions don't render a fallback.
+  useEffect(() => {
+    void import('./pages/Lobby');
+    void import('./pages/Waiting');
+    void import('./pages/Finished');
+  }, []);
+
   return (
-    <div className={`min-h-[100dvh] bg-surface ${isToolSelector ? 'px-0' : 'flex items-start sm:items-center justify-center p-4 sm:p-6'}`}>
-      <div className={`w-full ${isToolSelector ? 'min-h-[100dvh]' : 'max-w-md pt-2 sm:pt-0'}`}>
+    <div className="min-h-[100dvh] bg-surface flex items-start sm:items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md pt-2 sm:pt-0">
         {!isToolSelector && (
           <div className="mb-3 flex items-center justify-between">
-            {(state.phase === 'lobby' || state.phase === 'waiting') ? (
+            {(state.phase === 'lobby' || state.phase === 'waiting' || state.phase === 'playing') ? (
               <button
-                onClick={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
+                onClick={() => {
+                  localStorage.removeItem(RECONNECT_STORAGE_KEY);
+                  dispatch({ type: 'BACK_TO_TOOL_SELECT' });
+                }}
                 className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
               >
                 <Icon name="arrow_back" className="text-[20px]" />
@@ -133,6 +143,12 @@ export default function App() {
           {isToolSelector && (
             <ToolSelector
               onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
+              onStartTool={(tool) => {
+                const bestOf = tool === 'rps' ? 3 : 1;
+                dispatch({ type: 'GAME_START', you: 'a', bestOf, tool });
+                send({ type: 'create_room', bestOf, tool });
+              }}
+              connected={connected}
               onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
               pendingJoinCode={state.pendingJoinCode}
               error={state.error}

@@ -100,12 +100,13 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
     const isReactionLocked = reaction?.phase === 'countdown' || reaction?.phase === 'green';
     const myReady = !!(reaction && mySlot && reaction.readyBy.includes(mySlot));
     const oppReady = !!(reaction && oppSlot && reaction.readyBy.includes(oppSlot));
+    const iAlreadyPressed = !!(reaction?.pressedBy && mySlot && reaction.pressedBy.includes(mySlot));
     const isIdlePhase = !reaction || reaction.phase === 'idle';
     const isCountdownPhase = reaction?.phase === 'countdown';
     const isGreenPhase = reaction?.phase === 'green';
     const isTargetMode = syncedMode === 'target';
     const f1LightVisualActive = isCountdownPhase ? f1LightsActive : 0;
-    const primaryActionDisabled = isIdlePhase ? isReactionLocked : (isTargetMode ? !isGreenPhase : false);
+    const primaryActionDisabled = isIdlePhase ? isReactionLocked : (isTargetMode ? (!isGreenPhase || iAlreadyPressed) : false);
     const primaryActionLabel = isIdlePhase
         ? (myReady ? t('reaction.cancelReady') : t('reaction.tapReady'))
         : (isTargetMode ? t('reaction.pressButton') : `${t('reaction.pressButton')} (F1)`);

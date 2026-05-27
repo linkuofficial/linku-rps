@@ -10,6 +10,8 @@ import type { IconName } from '../components/Icon';
 
 interface Props {
     onSelect: (tool: ToolId) => void;
+    onStartTool: (tool: ToolId) => void;
+    connected: boolean;
     onJoinByCode?: (code: string) => void;
     pendingJoinCode?: string | null;
     error?: { code: string; message: string } | null;
@@ -34,13 +36,14 @@ const TOOLS: ToolMeta[] = [
     { id: 'reaction', enabled: true, icon: 'touch_app' },
 ];
 
-export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, error, onClearError }: Props) {
+export default function ToolSelector({ onSelect, onStartTool, connected, onJoinByCode, pendingJoinCode, error, onClearError }: Props) {
     const { t, locale, translateError } = useI18n();
     const isRtl = locale === 'ar';
     const currentYear = new Date().getFullYear();
     const copyrightYears = currentYear > 2025 ? `2025-${currentYear}` : '2025';
     const [clock, setClock] = useState(() => formatClock(locale));
     const [joinCode, setJoinCode] = useState('');
+    const [loadingTool, setLoadingTool] = useState<ToolId | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -48,6 +51,10 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
         const timer = window.setInterval(() => setClock(formatClock(locale)), 1000);
         return () => window.clearInterval(timer);
     }, [locale]);
+
+    // Reset loading state if the connection drops or an error arrives.
+    useEffect(() => { if (!connected) setLoadingTool(null); }, [connected]);
+    useEffect(() => { if (error) setLoadingTool(null); }, [error]);
 
     // Clear local input when pending join is resolved (joined or error)
     useEffect(() => {
@@ -60,6 +67,11 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
         const code = joinCode.trim().toUpperCase();
         if (!code || code.length < 4 || pendingJoinCode) return;
         onJoinByCode?.(code);
+    };
+
+    const handleToolClick = (tool: ToolId) => {
+        if (!tool || loadingTool) return;
+        onSelect(tool);
     };
 
     const displayNames: Record<ToolId, string> = {
@@ -76,7 +88,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="flex min-h-screen flex-col overflow-hidden bg-surface"
+            className="fixed inset-0 z-10 flex flex-col overflow-y-auto bg-surface"
         >
             <main className="tool-selector-main mx-auto flex w-full max-w-[1440px] flex-1 flex-col justify-center px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10 lg:py-10">
                 <div className="tool-selector-content">
@@ -94,14 +106,22 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                         {(isRtl ? [...TOOLS].reverse() : TOOLS).map((tool) => (
                             <button
                                 key={tool.id}
-                                onClick={() => tool.enabled && onSelect(tool.id)}
-                                disabled={!tool.enabled}
+                                onClick={() => tool.enabled && handleToolClick(tool.id)}
+                                disabled={!tool.enabled || !!loadingTool}
+                                aria-busy={loadingTool === tool.id}
                                 className={`group flex aspect-square min-h-[136px] min-w-[136px] flex-shrink-0 flex-col items-center justify-center border p-4 text-center transition-colors sm:min-h-[160px] sm:min-w-[160px] sm:p-5 lg:min-h-[176px] lg:min-w-[176px] xl:min-h-[188px] xl:min-w-[188px] ${isRtl ? 'rtl' : ''} ${tool.enabled
-                                    ? 'border-border bg-surface-container-lowest hover:border-on-surface'
+                                    ? loadingTool === tool.id
+                                        ? 'border-on-surface bg-surface-container-lowest cursor-wait'
+                                        : loadingTool
+                                            ? 'border-border bg-surface-alt opacity-40 cursor-not-allowed'
+                                            : 'border-border bg-surface-container-lowest hover:border-on-surface'
                                     : 'border-border bg-surface-alt text-on-surface-variant cursor-not-allowed'
                                     }`}
                             >
-                                <Icon name={tool.icon} className="mb-3 text-[30px] text-primary transition-transform duration-300 group-hover:scale-105 sm:mb-4 sm:text-[36px] lg:text-[42px]" />
+                                {loadingTool === tool.id
+                                    ? <span className="mb-3 block w-[30px] h-[30px] sm:w-[36px] sm:h-[36px] lg:w-[42px] lg:h-[42px] border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                                    : <Icon name={tool.icon} className="mb-3 text-[30px] text-primary transition-transform duration-300 group-hover:scale-105 sm:mb-4 sm:text-[36px] lg:text-[42px]" />
+                                }
                                 <span className="text-center text-[16px] font-semibold leading-tight tracking-[-0.02em] text-primary sm:text-[19px] lg:text-[21px]">{displayNames[tool.id]}</span>
                                 {!tool.enabled && <span className="mt-3 text-label-sm uppercase tracking-[0.2em] text-on-surface-variant">{t('toolSelector.comingSoon')}</span>}
                             </button>
@@ -137,7 +157,7 @@ export default function ToolSelector({ onSelect, onJoinByCode, pendingJoinCode, 
                                     value={joinCode}
                                     dir="ltr"
                                     disabled={!!pendingJoinCode}
-                                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                                    onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                     onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                                     className="flex-1 min-w-0 px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors disabled:opacity-50"
                                 />

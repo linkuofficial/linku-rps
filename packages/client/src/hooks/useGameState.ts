@@ -51,6 +51,7 @@ export interface GameState {
         mode: ReactionMode;
         targetCentis: number | null;
         readyBy: PlayerSlot[];
+        pressedBy: PlayerSlot[];
         countdownMs: number | null;
         greenAt: number | null;
         falseStartBy: PlayerSlot | null;
@@ -137,6 +138,7 @@ type Action =
         mode: ReactionMode;
         targetCentis: number | null;
         readyBy: PlayerSlot[];
+        pressedBy: PlayerSlot[];
         countdownMs: number | null;
         greenAt: number | null;
         by: PlayerSlot | 'system';
@@ -250,6 +252,28 @@ function reducer(state: GameState, action: Action): GameState {
         case 'BACK_TO_TOOL_SELECT':
             return { ...initialState };
         case 'ROOM_CREATED':
+            // If we're already playing (optimistic start from ToolSelector), just patch
+            // the roomId and reconnectToken without resetting game state.
+            if (state.phase === 'playing') {
+                return {
+                    ...state,
+                    roomId: action.roomId,
+                    reconnectToken: action.reconnectToken,
+                    tool: action.tool,
+                };
+            }
+            // For the tool_select path (direct create from ToolSelector), stay in
+            // tool_select so the spinner stays visible until GAME_START.
+            if (state.phase === 'tool_select') {
+                return {
+                    ...state,
+                    roomId: action.roomId,
+                    bestOf: action.bestOf,
+                    tool: action.tool,
+                    reconnectToken: action.reconnectToken,
+                    error: null,
+                };
+            }
             return {
                 ...state,
                 phase: 'waiting',
@@ -264,6 +288,7 @@ function reducer(state: GameState, action: Action): GameState {
         case 'JOINED':
             return {
                 ...state,
+                phase: 'waiting',
                 roomId: action.roomId,
                 bestOf: action.bestOf,
                 tool: action.tool,
@@ -274,6 +299,9 @@ function reducer(state: GameState, action: Action): GameState {
                 pendingJoinCode: null,
             };
         case 'GAME_START':
+            // Idempotent guard: a second GAME_START (from server's game_start message arriving
+            // after room_created already dispatched one) must not reset an in-progress game.
+            if (state.phase === 'playing') return state;
             return { ...resetForNewMatch(state, action.bestOf), mySlot: action.you, tool: action.tool };
         case 'RECONNECT_OK':
             return {
@@ -460,6 +488,7 @@ function reducer(state: GameState, action: Action): GameState {
                     mode: action.mode,
                     targetCentis: action.targetCentis,
                     readyBy: action.readyBy,
+                    pressedBy: action.pressedBy,
                     countdownMs: action.countdownMs,
                     greenAt: action.greenAt,
                     falseStartBy: state.reactionState?.falseStartBy ?? null,
@@ -479,7 +508,7 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
-                history: state.roomId
+                history: state.roomId && action.phase !== state.reactionState?.phase
                     ? [...state.history, {
                         roomId: state.roomId,
                         tool: state.tool ?? 'reaction',
@@ -502,6 +531,7 @@ function reducer(state: GameState, action: Action): GameState {
                     mode: action.mode,
                     targetCentis: action.targetCentis,
                     readyBy: [],
+                    pressedBy: [],
                     countdownMs: null,
                     greenAt: null,
                     falseStartBy: action.falseStartBy,
@@ -554,12 +584,17 @@ function reducer(state: GameState, action: Action): GameState {
             return resetForNewMatch(state, action.bestOf);
         case 'OPPONENT_LEFT':
             return { ...state, error: { code: 'opponent_disconnected', message: 'Opponent disconnected. Waiting up to 30 seconds for reconnection.' } };
-        case 'ERROR':
+        case 'ERROR': {
+            const FATAL_CODES: readonly ErrorCode[] = ['room_no_longer_exists', 'reconnect_auth_failed', 'room_not_found'];
+            if (state.phase === 'playing' && FATAL_CODES.includes(action.code)) {
+                return { ...initialState, error: { code: action.code, message: action.message, reason: action.reason } };
+            }
             return {
                 ...state,
                 error: { code: action.code, message: action.message, reason: action.reason },
                 ...(state.phase === 'tool_select' ? { pendingJoinCode: null } : {}),
             };
+        }
         case 'CLEAR_ERROR':
             return { ...state, error: null };
         case 'SET_PENDING_JOIN':
@@ -576,6 +611,23 @@ export const initialGameStateForTest = initialState;
 export const inferToolFromRoomIdForTest = inferToolFromRoomId;
 export const resolveIncomingToolForTest = resolveIncomingTool;
 
+// Exported guard predicates for unit testing — mirror the conditions in handleMessage
+export function shouldProcessRoomCreatedForTest(phase: GamePhase, msgTool: unknown, msgRoomId: string, stateTool: ToolId | null): boolean {
+    if (phase !== 'lobby' && phase !== 'tool_select') return false;
+    const tool = resolveIncomingTool(msgTool, msgRoomId, stateTool);
+    if (!tool) return false;
+    if (phase === 'lobby') return tool === stateTool;
+    return true;
+}
+export function shouldProcessJoinedForTest(phase: GamePhase, pendingJoinCode: string | null): boolean {
+    return phase === 'lobby' || (phase === 'tool_select' && !!pendingJoinCode);
+}
+export function shouldProcessGameStartForTest(stateTool: ToolId | null, msgTool: unknown, roomId: string | null): boolean {
+    if (stateTool === null) return false;
+    const tool = resolveIncomingTool(msgTool, roomId, stateTool);
+    return tool !== null && tool === stateTool;
+}
+
 let emojiIdCounter = 0;
 
 function safeInt(value: unknown, fallback: number): number {
@@ -588,25 +640,36 @@ export function useGameState() {
     const handleMessage = useCallback((msg: ServerMessage) => {
         switch (msg.type) {
             case 'room_created': {
+                // Accept both 'lobby' (create via Lobby page) and 'tool_select' (create directly
+                // from ToolSelector, skipping the Lobby step for solo-capable tools).
+                if (state.phase !== 'lobby' && state.phase !== 'tool_select') break;
                 const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
                 if (!tool) break;
+                // For lobby phase, also verify the tool matches what the user selected.
+                // For tool_select, the tool comes straight from the server — trust it.
+                if (state.phase === 'lobby' && tool !== state.tool) break;
                 dispatch({ type: 'ROOM_CREATED', roomId: msg.roomId, bestOf: safeInt(msg.bestOf, 3), tool, reconnectToken: msg.reconnectToken });
-                // Non-rps tools support solo play: skip the waiting screen by starting immediately.
-                // The server also sends game_start right after, which is handled identically.
-                if (tool !== 'rps') {
-                    dispatch({ type: 'GAME_START', you: 'a', bestOf: safeInt(msg.bestOf, 3), tool });
-                }
+                // For non-rps tools the optimistic GAME_START was already dispatched
+                // on click. The server's game_start will be ignored by the idempotent guard.
                 break;
             }
             case 'joined': {
+                // Guard: accept join responses only when we are in lobby (join-by-code from Lobby)
+                // or in tool_select with an active pending join (join-by-code from ToolSelector).
+                if (state.phase !== 'lobby' && !(state.phase === 'tool_select' && state.pendingJoinCode)) break;
                 const tool = resolveIncomingTool(msg.tool, msg.roomId, state.tool);
                 if (!tool) break;
                 dispatch({ type: 'JOINED', roomId: msg.roomId, bestOf: safeInt(msg.bestOf, 3), tool, reconnectToken: msg.reconnectToken });
                 break;
             }
             case 'game_start': {
+                if (state.phase === 'playing' || state.phase === 'finished') break;
                 const tool = resolveIncomingTool(msg.tool, state.roomId, state.tool);
                 if (!tool) break;
+                // Guard: only accept if the resolved tool matches the tool we currently have.
+                // Prevents a stale game_start (from a discarded room creation or join) from
+                // silently moving the user into a game for the wrong tool.
+                if (state.tool === null || tool !== state.tool) break;
                 dispatch({ type: 'GAME_START', you: msg.you, bestOf: safeInt(msg.bestOf, 3), tool });
                 break;
             }
@@ -662,7 +725,7 @@ export function useGameState() {
                 });
                 break;
             case 'reaction_state':
-                dispatch({ type: 'REACTION_STATE', phase: msg.phase, mode: msg.mode, targetCentis: msg.targetCentis, readyBy: msg.readyBy, countdownMs: msg.countdownMs, greenAt: msg.greenAt, by: msg.by, round: msg.round, timestamp: msg.timestamp });
+                dispatch({ type: 'REACTION_STATE', phase: msg.phase, mode: msg.mode, targetCentis: msg.targetCentis, readyBy: msg.readyBy, pressedBy: msg.pressedBy ?? [], countdownMs: msg.countdownMs, greenAt: msg.greenAt, by: msg.by, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'reaction_result':
                 dispatch({ type: 'REACTION_RESULT', mode: msg.mode, targetCentis: msg.targetCentis, deltaCentis: msg.deltaCentis, winner: msg.winner, falseStartBy: msg.falseStartBy, reactionMs: msg.reactionMs, by: msg.by, round: msg.round, timestamp: msg.timestamp });
@@ -692,7 +755,7 @@ export function useGameState() {
                 dispatch({ type: 'ERROR', code: msg.code, message: msg.message, reason: msg.reason });
                 break;
         }
-    }, [state.roomId, state.tool]);
+    }, [state.phase, state.pendingJoinCode, state.roomId, state.tool]);
 
     return { state, dispatch, handleMessage };
 }

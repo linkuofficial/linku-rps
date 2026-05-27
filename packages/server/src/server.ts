@@ -101,6 +101,7 @@ interface Room {
         timer: ReturnType<typeof setTimeout> | null;
     } | null;
     drawSession: { sourceKey: string; remaining: string[] } | null;
+    lastResultMsg: ServerMessage | null;
     history: RoomHistoryEvent[];
     cleanupTimer: ReturnType<typeof setTimeout> | null;
 }
@@ -217,9 +218,9 @@ const TOOL_ID_PREFIX: Record<ToolId, string> = {
 
 function createRoomId(tool: ToolId): string {
     const prefix = TOOL_ID_PREFIX[tool];
-    let roomId = prefix + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    let roomId = prefix + (Math.floor(Math.random() * 9000) + 1000).toString();
     while (rooms[roomId]) {
-        roomId = prefix + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        roomId = prefix + (Math.floor(Math.random() * 9000) + 1000).toString();
     }
     return roomId;
 }
@@ -243,7 +244,9 @@ function clearCleanup(room: Room) {
 function csvEscape(value: string | number | null): string {
     if (value === null || value === undefined) return '';
     const text = String(value).replace(/\r\n|\r|\n/g, ' ').replace(/"/g, '""');
-    return `"${text}"`;
+    // Prevent spreadsheet formula injection (OWASP CSV injection)
+    const safe = /^[=+\-@|\t]/.test(text) ? `\t${text}` : text;
+    return `"${safe}"`;
 }
 
 function toCsv(history: RoomHistoryEvent[]): string {
@@ -365,12 +368,16 @@ function broadcastReactionState(roomId: string, room: Room, by: PlayerSlot | 'sy
     const reaction = room.reactionSession;
     if (!reaction) return;
     const readyBy = (['a', 'b'] as PlayerSlot[]).filter((slot) => reaction.ready[slot]);
+    const pressedBy = reaction.phase === 'green'
+        ? (['a', 'b'] as PlayerSlot[]).filter((slot) => !!reaction.presses[slot])
+        : [];
     broadcast(room, {
         type: 'reaction_state',
         phase: reaction.phase,
         mode: reaction.mode,
         targetCentis: reaction.targetCentis,
         readyBy,
+        pressedBy,
         countdownMs: reaction.countdownMs,
         greenAt: reaction.greenAt,
         by,
@@ -450,7 +457,7 @@ function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot | 'sys
     reaction.greenAt = null;
     clearReactionTimer(room);
 
-    broadcast(room, {
+    const reactionResultMsg: ServerMessage = {
         type: 'reaction_result',
         mode: reaction.mode,
         targetCentis: reaction.targetCentis,
@@ -461,7 +468,9 @@ function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot | 'sys
         by,
         round: room.round,
         timestamp: Date.now(),
-    });
+    };
+    room.lastResultMsg = reactionResultMsg;
+    broadcast(room, reactionResultMsg);
 
     logEvent(roomId, room, {
         event: 'reaction_result',
@@ -605,6 +614,16 @@ wss.on('connection', (ws) => {
 
         switch (msg.type) {
             case 'create_room': {
+                // Detach this WebSocket from any previously owned room slot to prevent
+                // stale room.a/b references that would never get cleaned up.
+                if (roomId !== null && playerSlot !== null) {
+                    const prevRoom = rooms[roomId];
+                    if (prevRoom?.[playerSlot] === ws) {
+                        prevRoom[playerSlot] = null;
+                        prevRoom.disconnectedAt[playerSlot] = Date.now();
+                        if (!prevRoom.a && !prevRoom.b) scheduleCleanup(roomId, prevRoom);
+                    }
+                }
                 const bestOf = [1, 3, 5, 7].includes(msg.bestOf) ? msg.bestOf : 3;
                 const tool = TOOL_IDS.includes(msg.tool) ? msg.tool : 'rps';
                 const newRoomId = createRoomId(tool);
@@ -626,12 +645,13 @@ wss.on('connection', (ws) => {
                     rematchRequested: { a: false, b: false },
                     reactionSession: null,
                     drawSession: null,
+                    lastResultMsg: null,
                     history: [],
                     cleanupTimer: null,
                 };
                 logEvent(newRoomId, rooms[newRoomId], {
                     event: 'room_created',
-                    round: 0,
+                    round: 1,
                     actor: 'a',
                     result: 'ok',
                     scoreA: 0,
@@ -670,6 +690,15 @@ wss.on('connection', (ws) => {
             }
 
             case 'join_room': {
+                // Detach from any previously owned room slot.
+                if (roomId !== null && playerSlot !== null) {
+                    const prevRoom = rooms[roomId];
+                    if (prevRoom?.[playerSlot] === ws) {
+                        prevRoom[playerSlot] = null;
+                        prevRoom.disconnectedAt[playerSlot] = Date.now();
+                        if (!prevRoom.a && !prevRoom.b) scheduleCleanup(roomId, prevRoom);
+                    }
+                }
                 const id = msg.roomId.toUpperCase();
                 const room = rooms[id];
                 if (!room) {
@@ -699,12 +728,17 @@ wss.on('connection', (ws) => {
                     tool: room.tool,
                     reconnectToken,
                 });
-                send(room.a, {
-                    type: 'game_start',
-                    you: 'a',
-                    bestOf: room.bestOf,
-                    tool: room.tool,
-                });
+                // For RPS, player A was waiting — send game_start to begin the match.
+                // For solo-capable tools, player A already received game_start on room
+                // creation; re-sending it would reset an in-progress session.
+                if (room.tool === 'rps') {
+                    send(room.a, {
+                        type: 'game_start',
+                        you: 'a',
+                        bestOf: room.bestOf,
+                        tool: room.tool,
+                    });
+                }
                 send(room.b, {
                     type: 'game_start',
                     you: 'b',
@@ -780,6 +814,11 @@ wss.on('connection', (ws) => {
                 if (room.tool === 'reaction' && room.reactionSession) {
                     broadcastReactionState(id, room, slot);
                 }
+                // Re-send the last game result so the reconnecting player's screen
+                // isn't blank (e.g. after a coin flip, dice roll, wheel spin, etc.).
+                if (room.lastResultMsg) {
+                    send(ws, room.lastResultMsg);
+                }
                 logEvent(id, room, {
                     event: 'player_reconnected',
                     round: room.round,
@@ -832,13 +871,9 @@ wss.on('connection', (ws) => {
                     if (result === 'a_wins') room.score.a++;
                     else if (result === 'b_wins') room.score.b++;
 
-                    broadcast(room, {
-                        type: 'round_result',
-                        choices: { a: choiceA, b: choiceB },
-                        result,
-                        score: { ...room.score },
-                        round: room.round,
-                    });
+                    const roundMsg: ServerMessage = { type: 'round_result', choices: { a: choiceA, b: choiceB }, result, score: { ...room.score }, round: room.round };
+                    room.lastResultMsg = roundMsg;
+                    broadcast(room, roundMsg);
                     logEvent(roomId, room, {
                         event: 'rps_round',
                         round: room.round,
@@ -891,13 +926,9 @@ wss.on('connection', (ws) => {
                 }
 
                 const result: CoinFace = Math.random() < 0.5 ? 'heads' : 'tails';
-                broadcast(room, {
-                    type: 'coin_result',
-                    result,
-                    by: playerSlot,
-                    round: room.round,
-                    timestamp: Date.now(),
-                });
+                const coinMsg: ServerMessage = { type: 'coin_result', result, by: playerSlot, round: room.round, timestamp: Date.now() };
+                room.lastResultMsg = coinMsg;
+                broadcast(room, coinMsg);
                 logEvent(roomId, room, {
                     event: 'coin_flip',
                     round: room.round,
@@ -939,17 +970,9 @@ wss.on('connection', (ws) => {
 
                 const values = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
                 const total = values.reduce((acc, n) => acc + n, 0);
-
-                broadcast(room, {
-                    type: 'dice_result',
-                    values,
-                    total,
-                    count,
-                    sides,
-                    by: playerSlot,
-                    round: room.round,
-                    timestamp: Date.now(),
-                });
+                const diceMsg: ServerMessage = { type: 'dice_result', values, total, count, sides, by: playerSlot, round: room.round, timestamp: Date.now() };
+                room.lastResultMsg = diceMsg;
+                broadcast(room, diceMsg);
                 logEvent(roomId, room, {
                     event: 'dice_roll',
                     round: room.round,
@@ -985,14 +1008,9 @@ wss.on('connection', (ws) => {
                 }
 
                 const selectedIndex = Math.floor(Math.random() * options.length);
-                broadcast(room, {
-                    type: 'wheel_result',
-                    options,
-                    selectedIndex,
-                    by: playerSlot,
-                    round: room.round,
-                    timestamp: Date.now(),
-                });
+                const wheelMsg: ServerMessage = { type: 'wheel_result', options, selectedIndex, by: playerSlot, round: room.round, timestamp: Date.now() };
+                room.lastResultMsg = wheelMsg;
+                broadcast(room, wheelMsg);
                 logEvent(roomId, room, {
                     event: 'wheel_spin',
                     round: room.round,
@@ -1060,18 +1078,9 @@ wss.on('connection', (ws) => {
                     room.drawSession = null;
                 }
 
-                broadcast(room, {
-                    type: 'draw_result',
-                    mode,
-                    noRepeat,
-                    sourceNames,
-                    orderedNames,
-                    pickedName,
-                    remainingNames,
-                    by: playerSlot,
-                    round: room.round,
-                    timestamp: Date.now(),
-                });
+                const drawMsg: ServerMessage = { type: 'draw_result', mode, noRepeat, sourceNames, orderedNames, pickedName, remainingNames, by: playerSlot, round: room.round, timestamp: Date.now() };
+                room.lastResultMsg = drawMsg;
+                broadcast(room, drawMsg);
                 logEvent(roomId, room, {
                     event: mode === 'pick' ? 'draw_pick' : 'draw_shuffle',
                     round: room.round,
@@ -1240,7 +1249,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.winner || !room.a || !room.b) {
+                if (!room || !room.winner || !room.tokens.b) {
                     invalidGameState('rematch_request_invalid_state');
                     return;
                 }
@@ -1261,6 +1270,7 @@ wss.on('connection', (ws) => {
                     room.rematchRequested = { a: false, b: false };
                     room.reactionSession = null;
                     room.drawSession = null;
+                    room.lastResultMsg = null;
                     broadcast(room, { type: 'rematch_started', bestOf: room.bestOf });
                     logEvent(roomId, room, {
                         event: 'rematch_started',
@@ -1281,7 +1291,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const room = rooms[roomId];
-                if (!room || !room.winner || !room.a || !room.b) {
+                if (!room || !room.winner || !room.tokens.b) {
                     invalidGameState('rematch_response_invalid_state');
                     return;
                 }
@@ -1305,6 +1315,7 @@ wss.on('connection', (ws) => {
                     room.rematchRequested = { a: false, b: false };
                     room.reactionSession = null;
                     room.drawSession = null;
+                    room.lastResultMsg = null;
                     broadcast(room, { type: 'rematch_started', bestOf: room.bestOf });
                     logEvent(roomId, room, {
                         event: 'rematch_started',
@@ -1359,7 +1370,10 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 const emoji = String(msg.emoji || '');
-                if (!emoji || emoji.length > 4) {
+                const emojiGraphemes = typeof Intl !== 'undefined' && 'Segmenter' in Intl
+                    ? [...new Intl.Segmenter().segment(emoji)].length
+                    : [...emoji].length;
+                if (!emoji || emojiGraphemes > 1) {
                     invalidGameState('emoji_invalid_payload');
                     return;
                 }

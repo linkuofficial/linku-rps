@@ -1,4 +1,5 @@
 import { motion } from '../lib/motion-lite';
+import { RECONNECT_STORAGE_KEY } from '../lib/storage-keys';
 import type { ClientMessage } from '@rps/shared';
 import type { GameAction, GameState } from '../hooks/useGameState';
 import { useI18n } from '../i18n';
@@ -46,7 +47,10 @@ export default function Finished({ state, send, dispatch, connected }: Props) {
           {state.rematchRequestedByMe ? t('finished.rematchSent') : t('finished.rematch')}
         </button>
         <button
-          onClick={() => dispatch({ type: 'BACK_TO_TOOL_SELECT' })}
+          onClick={() => {
+            localStorage.removeItem(RECONNECT_STORAGE_KEY);
+            dispatch({ type: 'BACK_TO_TOOL_SELECT' });
+          }}
           className="px-6 py-3 border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors"
         >
           {t('common.backToTools')}

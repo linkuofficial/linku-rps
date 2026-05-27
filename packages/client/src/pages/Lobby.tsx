@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from '../lib/motion-lite';
 import type { ClientMessage } from '@rps/shared';
 import type { ToolId } from '@rps/shared';
@@ -20,19 +20,29 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
   const isRtl = locale === 'ar';
   const [joinCode, setJoinCode] = useState('');
   const [bestOf, setBestOf] = useState(3);
+  const [sending, setSending] = useState(false);
 
   const usesBestOf = tool === 'rps';
 
+  useEffect(() => {
+    if (error) setSending(false);
+  }, [error]);
+
   const createRoom = () => {
+    if (sending) return;
+    setSending(true);
     send({ type: 'create_room', bestOf: usesBestOf ? bestOf : 1, tool });
   };
   const joinRoom = () => {
     const code = joinCode.trim();
-    if (!code) return;
+    if (!code || sending) return;
+    setSending(true);
     send({ type: 'join_room', roomId: code });
   };
 
   const startNow = () => {
+    if (sending) return;
+    setSending(true);
     send({ type: 'create_room', bestOf: 1, tool });
   };
 
@@ -54,9 +64,9 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
 
         <div className="bg-surface-alt border border-border p-6 mb-4">
           <p className="text-label-md text-on-surface-variant mb-4">{t('lobby.soloHint')}</p>
-          <button onClick={startNow} disabled={!connected}
+          <button onClick={startNow} disabled={!connected || sending}
             className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            {t('common.startNow')}</button>
+            {sending ? t('toolSelector.joining') : t('common.startNow')}</button>
         </div>
 
         <div className="bg-surface-alt border border-border p-6">
@@ -113,9 +123,9 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
             {t('lobby.toolSyncHint')}
           </p>
         )}
-        <button onClick={createRoom} disabled={!connected}
+        <button onClick={createRoom} disabled={!connected || sending}
           className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-          {t('common.createRoom')}</button>
+          {sending ? t('toolSelector.joining') : t('common.createRoom')}</button>
       </div>
 
       <div className="flex items-center gap-3 my-4">
