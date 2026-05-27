@@ -101,6 +101,7 @@ interface Room {
         timer: ReturnType<typeof setTimeout> | null;
     } | null;
     drawSession: { sourceKey: string; remaining: string[] } | null;
+    pendingDiceRoll: { slot: PlayerSlot; values: number[]; total: number; count: number; sides: number } | null;
     lastResultMsg: ServerMessage | null;
     history: RoomHistoryEvent[];
     cleanupTimer: ReturnType<typeof setTimeout> | null;
@@ -645,6 +646,7 @@ wss.on('connection', (ws) => {
                     rematchRequested: { a: false, b: false },
                     reactionSession: null,
                     drawSession: null,
+                    pendingDiceRoll: null,
                     lastResultMsg: null,
                     history: [],
                     cleanupTimer: null,
@@ -970,17 +972,67 @@ wss.on('connection', (ws) => {
 
                 const values = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
                 const total = values.reduce((acc, n) => acc + n, 0);
-                const diceMsg: ServerMessage = { type: 'dice_result', values, total, count, sides, by: playerSlot, round: room.round, timestamp: Date.now() };
-                room.lastResultMsg = diceMsg;
-                broadcast(room, diceMsg);
+
+                // Solo mode: broadcast immediately
+                if (!room.b) {
+                    const diceMsg: ServerMessage = { type: 'dice_result', values, total, count, sides, by: playerSlot, round: room.round, timestamp: Date.now() };
+                    room.lastResultMsg = diceMsg;
+                    broadcast(room, diceMsg);
+                    logEvent(roomId, room, {
+                        event: 'dice_roll',
+                        round: room.round,
+                        actor: playerSlot,
+                        result: String(total),
+                        scoreA: null,
+                        scoreB: null,
+                        details: `${count}d${sides} => [${values.join(',')}]`,
+                    });
+                    room.round++;
+                    break;
+                }
+
+                // Duel mode: wait for both players to roll
+                if (room.pendingDiceRoll && room.pendingDiceRoll.slot === playerSlot) {
+                    // Same player re-rolling before opponent: overwrite
+                    room.pendingDiceRoll = { slot: playerSlot, values, total, count, sides };
+                    break;
+                }
+
+                if (!room.pendingDiceRoll) {
+                    // First player rolls: store and wait
+                    room.pendingDiceRoll = { slot: playerSlot, values, total, count, sides };
+                    break;
+                }
+
+                // Second player rolled: resolve duel
+                const first = room.pendingDiceRoll;
+                const second = { slot: playerSlot, values, total, count, sides };
+                const aRoll = first.slot === 'a' ? first : second;
+                const bRoll = first.slot === 'a' ? second : first;
+
+                const winner: PlayerSlot | 'draw' = aRoll.total > bRoll.total ? 'a' : bRoll.total > aRoll.total ? 'b' : 'draw';
+                if (winner === 'a') room.score.a++;
+                else if (winner === 'b') room.score.b++;
+
+                const duelMsg: ServerMessage = {
+                    type: 'dice_duel_result',
+                    a: { values: aRoll.values, total: aRoll.total, count: aRoll.count, sides: aRoll.sides },
+                    b: { values: bRoll.values, total: bRoll.total, count: bRoll.count, sides: bRoll.sides },
+                    winner,
+                    round: room.round,
+                    timestamp: Date.now(),
+                };
+                room.lastResultMsg = duelMsg;
+                room.pendingDiceRoll = null;
+                broadcast(room, duelMsg);
                 logEvent(roomId, room, {
                     event: 'dice_roll',
                     round: room.round,
                     actor: playerSlot,
-                    result: String(total),
-                    scoreA: null,
-                    scoreB: null,
-                    details: `${count}d${sides} => [${values.join(',')}]`,
+                    result: winner === 'draw' ? 'draw' : `${winner}_wins`,
+                    scoreA: room.score.a,
+                    scoreB: room.score.b,
+                    details: `A:${aRoll.count}d${aRoll.sides}=${aRoll.total} B:${bRoll.count}d${bRoll.sides}=${bRoll.total}`,
                 });
                 room.round++;
                 break;

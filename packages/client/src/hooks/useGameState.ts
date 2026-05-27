@@ -18,7 +18,7 @@ export interface EmojiFloat {
 export interface ResultHistoryEntry {
     roomId: string;
     tool: ToolId;
-    event: 'rps_round' | 'coin_flip' | 'dice_roll' | 'wheel_spin' | 'draw_pick' | 'draw_shuffle' | 'reaction_state' | 'reaction_result';
+    event: 'rps_round' | 'coin_flip' | 'dice_roll' | 'dice_duel' | 'wheel_spin' | 'draw_pick' | 'draw_shuffle' | 'reaction_state' | 'reaction_result';
     round: number;
     actor: PlayerSlot | 'system';
     result: string;
@@ -44,6 +44,7 @@ export interface GameState {
     winner: PlayerSlot | null;
     coinResult: { result: CoinFace; by: PlayerSlot; round: number; timestamp: number } | null;
     diceResult: { values: number[]; total: number; count: number; sides: number; by: PlayerSlot; round: number; timestamp: number } | null;
+    diceDuelResult: { a: { values: number[]; total: number; count: number; sides: number }; b: { values: number[]; total: number; count: number; sides: number }; winner: PlayerSlot | 'draw'; round: number; timestamp: number } | null;
     wheelResult: { options: WheelOption[]; selectedIndex: number; by: PlayerSlot; round: number; timestamp: number } | null;
     drawResult: { mode: DrawMode; noRepeat: boolean; sourceNames: string[]; orderedNames: string[]; pickedName: string | null; remainingNames: string[]; by: PlayerSlot; round: number; timestamp: number } | null;
     reactionState: {
@@ -109,6 +110,14 @@ type Action =
         count: number;
         sides: number;
         by: PlayerSlot;
+        round: number;
+        timestamp: number;
+    }
+    | {
+        type: 'DICE_DUEL_RESULT';
+        a: { values: number[]; total: number; count: number; sides: number };
+        b: { values: number[]; total: number; count: number; sides: number };
+        winner: PlayerSlot | 'draw';
         round: number;
         timestamp: number;
     }
@@ -187,6 +196,7 @@ const initialState: GameState = {
     winner: null,
     coinResult: null,
     diceResult: null,
+    diceDuelResult: null,
     wheelResult: null,
     drawResult: null,
     reactionState: null,
@@ -236,6 +246,7 @@ function resetForNewMatch(state: GameState, bestOf: number): GameState {
         winner: null,
         coinResult: null,
         diceResult: null,
+        diceDuelResult: null,
         wheelResult: null,
         drawResult: null,
         reactionState: null,
@@ -265,6 +276,18 @@ function reducer(state: GameState, action: Action): GameState {
             // For the tool_select path (direct create from ToolSelector), stay in
             // tool_select so the spinner stays visible until GAME_START.
             if (state.phase === 'tool_select') {
+                return {
+                    ...state,
+                    roomId: action.roomId,
+                    bestOf: action.bestOf,
+                    tool: action.tool,
+                    reconnectToken: action.reconnectToken,
+                    error: null,
+                };
+            }
+            // Non-RPS tools: stay in lobby (with loading state) until GAME_START arrives
+            // to avoid a brief Waiting page flash.
+            if (action.tool !== 'rps') {
                 return {
                     ...state,
                     roomId: action.roomId,
@@ -331,6 +354,7 @@ function reducer(state: GameState, action: Action): GameState {
                 lastResult: { choices: action.choices, result: action.result },
                 coinResult: null,
                 diceResult: null,
+                diceDuelResult: null,
                 wheelResult: null,
                 drawResult: null,
                 reactionState: null,
@@ -361,6 +385,7 @@ function reducer(state: GameState, action: Action): GameState {
                 ...state,
                 coinResult: { result: action.result, by: action.by, round: action.round, timestamp: action.timestamp },
                 diceResult: null,
+                diceDuelResult: null,
                 wheelResult: null,
                 drawResult: null,
                 reactionState: null,
@@ -388,6 +413,7 @@ function reducer(state: GameState, action: Action): GameState {
             return {
                 ...state,
                 diceResult: { values: action.values, total: action.total, count: action.count, sides: action.sides, by: action.by, round: action.round, timestamp: action.timestamp },
+                diceDuelResult: null,
                 coinResult: null,
                 wheelResult: null,
                 drawResult: null,
@@ -412,12 +438,46 @@ function reducer(state: GameState, action: Action): GameState {
                     }]
                     : state.history,
             };
+        case 'DICE_DUEL_RESULT':
+            return {
+                ...state,
+                diceDuelResult: { a: action.a, b: action.b, winner: action.winner, round: action.round, timestamp: action.timestamp },
+                diceResult: null,
+                coinResult: null,
+                wheelResult: null,
+                drawResult: null,
+                reactionState: null,
+                lastResult: null,
+                myChoice: null,
+                myChoiceSubmitted: false,
+                opponentReady: false,
+                score: {
+                    a: state.score.a + (action.winner === 'a' ? 1 : 0),
+                    b: state.score.b + (action.winner === 'b' ? 1 : 0),
+                },
+                round: action.round + 1,
+                history: state.roomId
+                    ? [...state.history, {
+                        roomId: state.roomId,
+                        tool: state.tool ?? 'dice',
+                        event: 'dice_duel',
+                        round: action.round,
+                        actor: 'a' as PlayerSlot,
+                        result: action.winner === 'draw' ? 'draw' : `${action.winner}_wins`,
+                        scoreA: state.score.a + (action.winner === 'a' ? 1 : 0),
+                        scoreB: state.score.b + (action.winner === 'b' ? 1 : 0),
+                        timestamp: action.timestamp,
+                        details: `A:${action.a.total} B:${action.b.total}`,
+                    }]
+                    : state.history,
+            };
         case 'WHEEL_RESULT': {
             const selected = action.options[action.selectedIndex];
             return {
                 ...state,
                 wheelResult: { options: action.options, selectedIndex: action.selectedIndex, by: action.by, round: action.round, timestamp: action.timestamp },
                 diceResult: null,
+                diceDuelResult: null,
                 coinResult: null,
                 drawResult: null,
                 reactionState: null,
@@ -459,6 +519,7 @@ function reducer(state: GameState, action: Action): GameState {
                 reactionState: null,
                 wheelResult: null,
                 diceResult: null,
+                diceDuelResult: null,
                 coinResult: null,
                 lastResult: null,
                 myChoice: null,
@@ -502,6 +563,7 @@ function reducer(state: GameState, action: Action): GameState {
                 drawResult: null,
                 wheelResult: null,
                 diceResult: null,
+                diceDuelResult: null,
                 coinResult: null,
                 lastResult: null,
                 myChoice: null,
@@ -545,6 +607,7 @@ function reducer(state: GameState, action: Action): GameState {
                 drawResult: null,
                 wheelResult: null,
                 diceResult: null,
+                diceDuelResult: null,
                 coinResult: null,
                 lastResult: null,
                 myChoice: null,
@@ -706,6 +769,9 @@ export function useGameState() {
                 break;
             case 'dice_result':
                 dispatch({ type: 'DICE_RESULT', values: msg.values, total: msg.total, count: msg.count, sides: msg.sides, by: msg.by, round: msg.round, timestamp: msg.timestamp });
+                break;
+            case 'dice_duel_result':
+                dispatch({ type: 'DICE_DUEL_RESULT', a: msg.a, b: msg.b, winner: msg.winner, round: msg.round, timestamp: msg.timestamp });
                 break;
             case 'wheel_result':
                 dispatch({ type: 'WHEEL_RESULT', options: msg.options, selectedIndex: msg.selectedIndex, by: msg.by, round: msg.round, timestamp: msg.timestamp });

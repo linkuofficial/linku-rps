@@ -10,7 +10,6 @@ import type { IconName } from '../components/Icon';
 
 interface Props {
     onSelect: (tool: ToolId) => void;
-    onStartTool: (tool: ToolId) => void;
     connected: boolean;
     onJoinByCode?: (code: string) => void;
     pendingJoinCode?: string | null;
@@ -36,7 +35,7 @@ const TOOLS: ToolMeta[] = [
     { id: 'reaction', enabled: true, icon: 'touch_app' },
 ];
 
-export default function ToolSelector({ onSelect, onStartTool, connected, onJoinByCode, pendingJoinCode, error, onClearError }: Props) {
+export default function ToolSelector({ onSelect, connected, onJoinByCode, pendingJoinCode, error, onClearError }: Props) {
     const { t, locale, translateError } = useI18n();
     const isRtl = locale === 'ar';
     const currentYear = new Date().getFullYear();

@@ -50,6 +50,17 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
         setDicePulseKey((c) => c + 1);
     }, [state.diceResult, state.round]);
 
+    // Clear rolling state when duel result arrives
+    useEffect(() => {
+        if (!state.diceDuelResult) return;
+        if (diceRollFallbackTimerRef.current) {
+            window.clearTimeout(diceRollFallbackTimerRef.current);
+            diceRollFallbackTimerRef.current = null;
+        }
+        setDiceRolling(false);
+        setDicePulseKey((c) => c + 1);
+    }, [state.diceDuelResult]);
+
     useEffect(() => {
         if (!diceRolling) return;
         const timer = window.setInterval(() => {
@@ -85,6 +96,13 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
     const diceHasStandardFaces = (state.diceResult?.sides ?? diceSides) === 6;
     const rolledByMe = state.diceResult?.by === state.mySlot;
 
+    // Duel result helpers
+    const duel = state.diceDuelResult;
+    const myDuel = duel ? (state.mySlot === 'a' ? duel.a : duel.b) : null;
+    const oppDuel = duel ? (state.mySlot === 'a' ? duel.b : duel.a) : null;
+    const duelWonByMe = duel ? duel.winner === state.mySlot : false;
+    const duelLost = duel ? (duel.winner !== 'draw' && duel.winner !== state.mySlot) : false;
+
     const renderDiceCell = (value: number, index: number) => {
         const display = value > 0 && diceHasStandardFaces
             ? (DICE_FACE_MAP[value] ?? String(value))
@@ -102,29 +120,63 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
 
     return (
         <>
-            <div
-                key={dicePulseKey}
-                className={`tool-result-panel dice-result-panel mb-4 border border-primary px-4 py-5 text-center sm:px-6 ${diceRolling ? 'dice-result-panel--rolling' : state.diceResult ? 'dice-result-panel--settled' : ''}`}
-            >
-                <div className="mb-1 text-label-sm text-on-surface-variant">{t('dice.rollRound', { round: Math.max(1, state.round - 1) })}</div>
+            {/* Duel result panel (multiplayer) */}
+            {duel && myDuel && oppDuel && (
                 <div
-                    key={`dice-total-${state.diceResult?.total ?? 'pending'}-${state.round}`}
-                    className="dice-total dice-total-flip text-on-surface"
+                    key={`duel-${duel.round}-${duel.timestamp}`}
+                    className="tool-result-panel dice-result-panel dice-result-panel--settled mb-4 border border-primary px-4 py-5 text-center sm:px-6"
                 >
-                    {diceDisplayTotal}
-                </div>
-                <div className="mb-3 text-label-md text-on-surface-variant">
-                    {diceRolling ? `${t('dice.roll')}...` : state.diceResult ? diceRollMeta : t('dice.notYet')}
-                </div>
-                <div className="mx-auto mb-3 grid max-w-sm grid-cols-3 gap-2 sm:max-w-md sm:grid-cols-6">
-                    {diceVisualValues.map((value, index) => renderDiceCell(value, index))}
-                </div>
-                {state.diceResult && (
-                    <div className="text-label-sm text-on-surface-variant">
-                        {t('dice.pointsBy', { values: state.diceResult.values.join(', '), who: whoLabel(rolledByMe ? 'me' : 'opp') })}
+                    <div className="mb-1 text-label-sm text-on-surface-variant">{t('dice.rollRound', { round: duel.round })}</div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 mb-3">
+                        <div className={`text-center ${duelWonByMe ? 'text-primary' : ''}`}>
+                            <div className="text-label-sm text-on-surface-variant mb-1">{whoLabel('me')}</div>
+                            <div className="dice-total text-on-surface">{myDuel.total}</div>
+                            <div className="text-label-sm text-on-surface-variant">{myDuel.count}d{myDuel.sides}</div>
+                        </div>
+                        <div className="text-label-md text-on-surface-variant font-medium">vs</div>
+                        <div className={`text-center ${duelLost ? 'text-primary' : ''}`}>
+                            <div className="text-label-sm text-on-surface-variant mb-1">{whoLabel('opp')}</div>
+                            <div className="dice-total text-on-surface">{oppDuel.total}</div>
+                            <div className="text-label-sm text-on-surface-variant">{oppDuel.count}d{oppDuel.sides}</div>
+                        </div>
                     </div>
-                )}
-            </div>
+                    <div className="text-label-md font-medium text-on-surface">
+                        {duel.winner === 'draw' ? t('dice.duelDraw') : duelWonByMe ? t('dice.duelWin') : t('dice.duelLose')}
+                    </div>
+                    {(state.score.a > 0 || state.score.b > 0) && (
+                        <div className="mt-2 text-label-sm text-on-surface-variant">
+                            {whoLabel('me')} {state.mySlot === 'a' ? state.score.a : state.score.b} – {state.mySlot === 'a' ? state.score.b : state.score.a} {whoLabel('opp')}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Solo result panel (single player or waiting for opponent roll) */}
+            {!duel && (
+                <div
+                    key={dicePulseKey}
+                    className={`tool-result-panel dice-result-panel mb-4 border border-primary px-4 py-5 text-center sm:px-6 ${diceRolling ? 'dice-result-panel--rolling' : state.diceResult ? 'dice-result-panel--settled' : ''}`}
+                >
+                    <div className="mb-1 text-label-sm text-on-surface-variant">{t('dice.rollRound', { round: Math.max(1, state.round - 1) })}</div>
+                    <div
+                        key={`dice-total-${state.diceResult?.total ?? 'pending'}-${state.round}`}
+                        className="dice-total dice-total-flip text-on-surface"
+                    >
+                        {diceDisplayTotal}
+                    </div>
+                    <div className="mb-3 text-label-md text-on-surface-variant">
+                        {diceRolling ? `${t('dice.roll')}...` : state.diceResult ? diceRollMeta : t('dice.notYet')}
+                    </div>
+                    <div className="mx-auto mb-3 grid max-w-sm grid-cols-3 gap-2 sm:max-w-md sm:grid-cols-6">
+                        {diceVisualValues.map((value, index) => renderDiceCell(value, index))}
+                    </div>
+                    {state.diceResult && (
+                        <div className="text-label-sm text-on-surface-variant">
+                            {t('dice.pointsBy', { values: state.diceResult.values.join(', '), who: whoLabel(rolledByMe ? 'me' : 'opp') })}
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="mb-4">
                 <button

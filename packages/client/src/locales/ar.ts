@@ -114,6 +114,10 @@ const dict: Dict = {
 	'dice.count': 'العدد',
 	'dice.sides': 'عدد الأوجه',
 	'dice.roll': 'ارم النرد',
+	'dice.duelWin': 'فزت!',
+	'dice.duelLose': 'خسرت',
+	'dice.duelDraw': 'تعادل',
+	'dice.waitingOpp': 'بانتظار الخصم...',
 
 	'wheel.round': 'دورة #{round}',
 	'wheel.notYet': 'لم يتم الدوران بعد',
@@ -201,8 +205,8 @@ const dict: Dict = {
 	'tool.subtitle.draw': 'اختيار عشوائي وخلط',
 	'tool.subtitle.reaction': 'عد تنازلي أحمر، واضغط عند الأخضر',
 
-    'darkMode.enable': 'تفعيل الوضع المظلم',
-    'darkMode.disable': 'تعطيل الوضع المظلم',
+	'darkMode.enable': 'تفعيل الوضع المظلم',
+	'darkMode.disable': 'تعطيل الوضع المظلم',
 };
 
 export default dict;

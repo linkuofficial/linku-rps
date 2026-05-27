@@ -114,6 +114,10 @@ const dict: Dict = {
     'dice.count': 'Nombre',
     'dice.sides': 'Faces',
     'dice.roll': 'Lancer les dés',
+    'dice.duelWin': 'Vous gagnez !',
+    'dice.duelLose': 'Vous perdez',
+    'dice.duelDraw': 'Égalité',
+    'dice.waitingOpp': 'En attente de l\'adversaire...',
 
     'wheel.round': 'Tour #{round}',
     'wheel.notYet': 'Pas encore tourné',

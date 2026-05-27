@@ -261,6 +261,15 @@ export interface DiceResultMsg {
   timestamp: number;
 }
 
+export interface DiceDuelResultMsg {
+  type: 'dice_duel_result';
+  a: { values: number[]; total: number; count: number; sides: number };
+  b: { values: number[]; total: number; count: number; sides: number };
+  winner: PlayerSlot | 'draw';
+  round: number;
+  timestamp: number;
+}
+
 export interface WheelResultMsg {
   type: 'wheel_result';
   options: WheelOption[];
@@ -333,6 +342,7 @@ export type ServerMessage =
   | RematchStartedMsg
   | CoinResultMsg
   | DiceResultMsg
+  | DiceDuelResultMsg
   | WheelResultMsg
   | DrawResultMsg
   | ReactionStateMsg

@@ -114,6 +114,10 @@ const dict: Dict = {
     'dice.count': '顆數',
     'dice.sides': '面數',
     'dice.roll': '擲骰子',
+    'dice.duelWin': '你贏了！',
+    'dice.duelLose': '你輸了',
+    'dice.duelDraw': '平手',
+    'dice.waitingOpp': '等待對方擲骰…',
 
     'wheel.round': '第 {round} 次轉盤',
     'wheel.notYet': '尚未轉動',

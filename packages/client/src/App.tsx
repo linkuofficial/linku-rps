@@ -143,11 +143,6 @@ export default function App() {
           {isToolSelector && (
             <ToolSelector
               onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
-              onStartTool={(tool) => {
-                const bestOf = tool === 'rps' ? 3 : 1;
-                dispatch({ type: 'GAME_START', you: 'a', bestOf, tool });
-                send({ type: 'create_room', bestOf, tool });
-              }}
               connected={connected}
               onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
               pendingJoinCode={state.pendingJoinCode}

@@ -114,6 +114,10 @@ const dict: Dict = {
     'dice.count': '個数',
     'dice.sides': '面数',
     'dice.roll': 'サイコロを振る',
+    'dice.duelWin': '勝ち！',
+    'dice.duelLose': '負け',
+    'dice.duelDraw': '引き分け',
+    'dice.waitingOpp': '相手の出目を待っています…',
 
     'wheel.round': 'スピン #{round}',
     'wheel.notYet': 'まだ回していません',

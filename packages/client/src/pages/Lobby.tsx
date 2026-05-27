@@ -62,23 +62,11 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
             onClick={() => dispatch({ type: 'CLEAR_ERROR' })}>{translateError(error.code, error.message)}</motion.div>
         )}
 
-        <div className="bg-surface-alt border border-border p-6 mb-4">
+        <div className="bg-surface-alt border border-border p-6">
           <p className="text-label-md text-on-surface-variant mb-4">{t('lobby.soloHint')}</p>
           <button onClick={startNow} disabled={!connected || sending}
             className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {sending ? t('toolSelector.joining') : t('common.startNow')}</button>
-        </div>
-
-        <div className="bg-surface-alt border border-border p-6">
-          <h2 className="text-label-sm text-on-surface-variant uppercase tracking-[0.05em] mb-3">{t('common.joinRoom')}</h2>
-          <input type="text" maxLength={4} inputMode="numeric" placeholder={t('lobby.joinCodePlaceholder')} value={joinCode}
-            dir="ltr"
-            onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
-            onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-            className="w-full px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors mb-3" />
-          <button onClick={joinRoom} disabled={!connected || !joinCode.trim()}
-            className="w-full py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            {t('common.join')}</button>
         </div>
       </motion.div>
     );
