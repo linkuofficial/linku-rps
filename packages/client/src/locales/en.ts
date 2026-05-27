@@ -23,6 +23,7 @@ const dict: Dict = {
     'error.room_no_longer_exists': 'Room no longer exists',
     'error.reconnect_auth_failed': 'Reconnect authentication failed',
     'error.opponent_disconnected': 'Opponent disconnected. Waiting up to 30 seconds for reconnection.',
+    'error.connection_timeout': 'Connection timed out. Please try again.',
 
     'toolSelector.title': 'Linku Toolbox',
     'toolSelector.subtitle': 'Multiplayer sync tools. Create a room and share a link.',

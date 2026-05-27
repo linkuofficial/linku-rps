@@ -23,6 +23,7 @@ const dict: Dict = {
     'error.room_no_longer_exists': 'La salle n existe plus',
     'error.reconnect_auth_failed': 'Échec de l authentification de reconnexion',
     'error.opponent_disconnected': 'Adversaire déconnecté. Attente de reconnexion pendant 30 secondes max.',
+    'error.connection_timeout': 'Connexion expirée. Veuillez réessayer.',
 
     'toolSelector.title': 'Boite a outils Linku',
     'toolSelector.subtitle': 'Outils synchronisés multijoueur. Créez une salle et partagez un lien.',

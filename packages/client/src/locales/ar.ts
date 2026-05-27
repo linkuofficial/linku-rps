@@ -23,6 +23,7 @@ const dict: Dict = {
 	'error.room_no_longer_exists': 'لم تعد الغرفة موجودة',
 	'error.reconnect_auth_failed': 'فشل توثيق إعادة الاتصال',
 	'error.opponent_disconnected': 'انقطع اتصال الخصم. ننتظر حتى 30 ثانية لإعادة اتصاله.',
+	'error.connection_timeout': 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.',
 
 	'toolSelector.title': 'صندوق أدوات Linku',
 	'toolSelector.subtitle': 'أدوات مزامنة متعددة اللاعبين. أنشئ غرفة وشارك الرابط.',

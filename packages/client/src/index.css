@@ -14,8 +14,7 @@
   --color-surface-container-highest: 226 226 226;
   --color-on-surface: 26 28 28;
   --color-on-surface-variant: 76 69 70;
-  --color-outline: 126 117 118;
-  --color-outline-variant: 207 196 197;
+  --color-outline: 126 117 118 --color-outline-variant: 207 196 197;
   --color-primary: 0 0 0;
   --color-primary-container: 27 27 27;
   --color-on-primary: 255 255 255;

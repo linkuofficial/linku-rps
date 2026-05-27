@@ -23,6 +23,7 @@ const dict: Dict = {
     'error.room_no_longer_exists': 'Комната больше не существует',
     'error.reconnect_auth_failed': 'Ошибка аутентификации переподключения',
     'error.opponent_disconnected': 'Соперник отключился. Ожидание переподключения до 30 секунд.',
+    'error.connection_timeout': 'Время ожидания соединения истекло. Попробуйте снова.',
 
     'toolSelector.title': 'Набор инструментов Linku',
     'toolSelector.subtitle': 'Синхронизированные мультиплеерные инструменты. Создайте комнату и поделитесь ссылкой.',

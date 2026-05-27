@@ -13,7 +13,14 @@ const CopyrightNoticePage = lazy(() => import('./pages/CopyrightNoticePage.tsx')
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nProvider>
-      <Suspense fallback={<div className="min-h-[100dvh] bg-surface" />}>
+      <Suspense fallback={
+        <div className="min-h-[100dvh] bg-surface flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 text-on-surface-variant text-label-sm">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-on-surface-variant border-t-transparent" aria-hidden="true" />
+            <span>Loading…</span>
+          </div>
+        </div>
+      }>
         <Switch>
           <Route path="/">
             <App />

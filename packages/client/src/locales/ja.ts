@@ -23,6 +23,7 @@ const dict: Dict = {
     'error.room_no_longer_exists': 'ルームはすでに存在しません',
     'error.reconnect_auth_failed': '再接続認証に失敗しました',
     'error.opponent_disconnected': '相手が切断されました。最大30秒間、再接続を待機します。',
+    'error.connection_timeout': '接続がタイムアウトしました。もう一度お試しください。',
 
     'toolSelector.title': 'Linku ツールボックス',
     'toolSelector.subtitle': 'マルチプレイヤー同期ツール。ルームを作ってリンクを共有。',

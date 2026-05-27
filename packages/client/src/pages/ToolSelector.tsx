@@ -13,6 +13,7 @@ interface Props {
     connected: boolean;
     onJoinByCode?: (code: string) => void;
     pendingJoinCode?: string | null;
+    onPendingJoinTimeout?: () => void;
     error?: { code: string; message: string } | null;
     onClearError?: () => void;
 }
@@ -35,7 +36,7 @@ const TOOLS: ToolMeta[] = [
     { id: 'reaction', enabled: true, icon: 'touch_app' },
 ];
 
-export default function ToolSelector({ onSelect, connected, onJoinByCode, pendingJoinCode, error, onClearError }: Props) {
+export default function ToolSelector({ onSelect, connected, onJoinByCode, pendingJoinCode, onPendingJoinTimeout, error, onClearError }: Props) {
     const { t, locale, translateError } = useI18n();
     const isRtl = locale === 'ar';
     const currentYear = new Date().getFullYear();
@@ -43,6 +44,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
     const [clock, setClock] = useState(() => formatClock(locale));
     const [joinCode, setJoinCode] = useState('');
     const [loadingTool, setLoadingTool] = useState<ToolId | null>(null);
+    const [joinTimeoutMessage, setJoinTimeoutMessage] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -55,16 +57,22 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
     useEffect(() => { if (!connected) setLoadingTool(null); }, [connected]);
     useEffect(() => { if (error) setLoadingTool(null); }, [error]);
 
-    // Clear local input when pending join is resolved (joined or error)
     useEffect(() => {
         if (!pendingJoinCode) {
-            setJoinCode('');
+            setJoinTimeoutMessage(null);
+            return;
         }
-    }, [pendingJoinCode]);
+        const timer = window.setTimeout(() => {
+            onPendingJoinTimeout?.();
+            setJoinTimeoutMessage(translateError('connection_timeout', 'Connection timed out. Please try again.') ?? 'Connection timed out. Please try again.');
+        }, 12000);
+        return () => window.clearTimeout(timer);
+    }, [pendingJoinCode, onPendingJoinTimeout, translateError]);
 
     const handleJoin = () => {
         const code = joinCode.trim().toUpperCase();
         if (!code || code.length < 4 || pendingJoinCode) return;
+        setJoinTimeoutMessage(null);
         onJoinByCode?.(code);
     };
 
@@ -108,6 +116,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                                 onClick={() => tool.enabled && handleToolClick(tool.id)}
                                 disabled={!tool.enabled || !!loadingTool}
                                 aria-busy={loadingTool === tool.id}
+                                aria-label={`${displayNames[tool.id]} ${t('common.startNow')}`}
                                 className={`group flex aspect-square min-h-[136px] min-w-[136px] flex-shrink-0 flex-col items-center justify-center border p-4 text-center transition-colors sm:min-h-[160px] sm:min-w-[160px] sm:p-5 lg:min-h-[176px] lg:min-w-[176px] xl:min-h-[188px] xl:min-w-[188px] ${isRtl ? 'rtl' : ''} ${tool.enabled
                                     ? loadingTool === tool.id
                                         ? 'border-on-surface bg-surface-container-lowest cursor-wait'
@@ -144,6 +153,22 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                                     onClick={() => { onClearError?.(); inputRef.current?.focus(); }}
                                 >
                                     {translateError(error.code, error.message)}
+                                </motion.div>
+                            )}
+
+                            {!error && joinTimeoutMessage && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-3 text-center"
+                                >
+                                    <p>{joinTimeoutMessage}</p>
+                                    <button
+                                        onClick={() => { setJoinTimeoutMessage(null); inputRef.current?.focus(); }}
+                                        className="mt-2 px-3 py-1 border border-primary text-on-surface hover:bg-surface transition-colors"
+                                    >
+                                        {t('app.reconnectNow')}
+                                    </button>
                                 </motion.div>
                             )}
 

@@ -28,6 +28,10 @@
     {
       "source": "/copyright",
       "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

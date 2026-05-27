@@ -90,86 +90,94 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-surface flex items-start sm:items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-md pt-2 sm:pt-0">
-        {!isToolSelector && (
-          <div className="mb-3 flex items-center justify-between">
-            {(state.phase === 'lobby' || state.phase === 'waiting' || state.phase === 'playing') ? (
-              <button
-                onClick={() => {
-                  localStorage.removeItem(RECONNECT_STORAGE_KEY);
-                  dispatch({ type: 'BACK_TO_TOOL_SELECT' });
-                }}
-                className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
-              >
-                <Icon name="arrow_back" className="text-[20px]" />
-              </button>
-            ) : <div />}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleDark}
-                aria-label={isDark ? t('darkMode.disable') : t('darkMode.enable')}
-                className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
-              >
-                <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-[20px]" />
-              </button>
-              <LanguageSwitcherCompact />
-            </div>
-          </div>
-        )}
-
-        {connectionState !== 'connected' && (
-          <div className="pointer-events-none fixed bottom-3 left-3 right-3 z-40 sm:bottom-5 sm:left-5 sm:right-auto sm:w-[min(26rem,calc(100vw-2.5rem))]">
-            <div
-              className="pointer-events-auto border border-border bg-surface-alt/95 px-3 py-2 text-label-sm text-on-surface shadow-lg backdrop-blur-sm flex items-center justify-between gap-2"
-              aria-live="polite"
+    <div className="fixed inset-0 bg-surface">
+      {connectionState !== 'connected' && (
+        <div className="pointer-events-none fixed bottom-3 left-3 right-3 z-40 sm:bottom-5 sm:left-5 sm:right-auto sm:w-[min(26rem,calc(100vw-2.5rem))]">
+          <div
+            className="pointer-events-auto border border-border bg-surface-alt/95 px-3 py-2 text-label-sm text-on-surface shadow-lg backdrop-blur-sm flex items-center justify-between gap-2"
+            aria-live="polite"
+          >
+            <span className="truncate">
+              {connectionState === 'connecting' && t('app.connecting')}
+              {connectionState === 'reconnecting' && t('app.reconnecting', { n: reconnectAttempt })}
+              {connectionState === 'disconnected' && t('app.disconnected')}
+            </span>
+            <button
+              onClick={reconnectNow}
+              className="shrink-0 px-2 py-1 font-medium text-on-surface hover:underline transition-colors"
             >
-              <span className="truncate">
-                {connectionState === 'connecting' && t('app.connecting')}
-                {connectionState === 'reconnecting' && t('app.reconnecting', { n: reconnectAttempt })}
-                {connectionState === 'disconnected' && t('app.disconnected')}
-              </span>
-              <button
-                onClick={reconnectNow}
-                className="shrink-0 px-2 py-1 font-medium text-on-surface hover:underline transition-colors"
-              >
-                {t('app.reconnectNow')}
-              </button>
+              {t('app.reconnectNow')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isToolSelector ? (
+        <Suspense fallback={pageFallback}>
+          <ToolSelector
+            onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
+            connected={connected}
+            onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
+            pendingJoinCode={state.pendingJoinCode}
+            onPendingJoinTimeout={() => dispatch({ type: 'CLEAR_PENDING_JOIN' })}
+            error={state.error}
+            onClearError={() => dispatch({ type: 'CLEAR_ERROR' })}
+          />
+        </Suspense>
+      ) : (
+        <div className="flex h-full flex-col">
+          <div className="mx-auto w-full max-w-md px-4 pt-4 sm:px-6">
+            <div className="mb-3 flex items-center justify-between">
+              {(state.phase === 'lobby' || state.phase === 'waiting' || state.phase === 'playing') ? (
+                <button
+                  onClick={() => {
+                    localStorage.removeItem(RECONNECT_STORAGE_KEY);
+                    dispatch({ type: 'BACK_TO_TOOL_SELECT' });
+                  }}
+                  className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
+                >
+                  <Icon name="arrow_back" className="text-[20px]" />
+                </button>
+              ) : <div />}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleDark}
+                  aria-label={isDark ? t('darkMode.disable') : t('darkMode.enable')}
+                  className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
+                >
+                  <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-[20px]" />
+                </button>
+                <LanguageSwitcherCompact />
+              </div>
             </div>
           </div>
-        )}
 
-        <Suspense fallback={pageFallback}>
-          {isToolSelector && (
-            <ToolSelector
-              onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
-              connected={connected}
-              onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
-              pendingJoinCode={state.pendingJoinCode}
-              error={state.error}
-              onClearError={() => dispatch({ type: 'CLEAR_ERROR' })}
-            />
-          )}
-          {state.phase === 'lobby' && state.tool && (
-            <Lobby
-              send={send}
-              connected={connected}
-              error={state.error}
-              dispatch={dispatch}
-              tool={state.tool}
-            />
-          )}
-          {state.phase === 'waiting' && (
-            <Waiting roomId={state.roomId!} bestOf={state.bestOf} tool={state.tool ?? 'rps'} />
-          )}
-          {state.phase === 'playing' && (
-            <Game state={state} send={send} dispatch={dispatch} />
-          )}
-          {state.phase === 'finished' && (
-            <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
-          )}
-        </Suspense>
-      </div>
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto flex min-h-full w-full max-w-md items-center px-4 pb-6 sm:px-6">
+              <Suspense fallback={pageFallback}>
+                {state.phase === 'lobby' && state.tool && (
+                  <Lobby
+                    send={send}
+                    connected={connected}
+                    error={state.error}
+                    dispatch={dispatch}
+                    tool={state.tool}
+                  />
+                )}
+                {state.phase === 'waiting' && (
+                  <Waiting roomId={state.roomId!} bestOf={state.bestOf} tool={state.tool ?? 'rps'} />
+                )}
+                {state.phase === 'playing' && (
+                  <Game state={state} send={send} dispatch={dispatch} />
+                )}
+                {state.phase === 'finished' && (
+                  <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
+                )}
+              </Suspense>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

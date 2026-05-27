@@ -21,29 +21,65 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
   const [joinCode, setJoinCode] = useState('');
   const [bestOf, setBestOf] = useState(3);
   const [sending, setSending] = useState(false);
+  const [lastAction, setLastAction] = useState<'create' | 'join' | 'start' | null>(null);
+  const [requestTimedOut, setRequestTimedOut] = useState(false);
 
   const usesBestOf = tool === 'rps';
 
   useEffect(() => {
-    if (error) setSending(false);
+    if (error) {
+      setSending(false);
+      setRequestTimedOut(false);
+    }
   }, [error]);
 
-  const createRoom = () => {
+  useEffect(() => {
+    if (!connected) setSending(false);
+  }, [connected]);
+
+  useEffect(() => {
+    if (!sending) return;
+    const timer = window.setTimeout(() => {
+      setSending(false);
+      setRequestTimedOut(true);
+    }, 12000);
+    return () => window.clearTimeout(timer);
+  }, [sending]);
+
+  const runAction = (action: 'create' | 'join' | 'start') => {
     if (sending) return;
+    setLastAction(action);
+    setRequestTimedOut(false);
     setSending(true);
-    send({ type: 'create_room', bestOf: usesBestOf ? bestOf : 1, tool });
+    if (action === 'create') {
+      send({ type: 'create_room', bestOf: usesBestOf ? bestOf : 1, tool });
+      return;
+    }
+    if (action === 'join') {
+      send({ type: 'join_room', roomId: joinCode.trim() });
+      return;
+    }
+    send({ type: 'create_room', bestOf: 1, tool });
   };
+
+  const createRoom = () => {
+    runAction('create');
+  };
+
   const joinRoom = () => {
     const code = joinCode.trim();
     if (!code || sending) return;
-    setSending(true);
-    send({ type: 'join_room', roomId: code });
+    runAction('join');
   };
 
   const startNow = () => {
-    if (sending) return;
-    setSending(true);
-    send({ type: 'create_room', bestOf: 1, tool });
+    runAction('start');
+  };
+
+  const retryLastAction = () => {
+    if (!connected || !lastAction || sending) return;
+    if (lastAction === 'join' && !joinCode.trim()) return;
+    runAction(lastAction);
   };
 
   if (!usesBestOf) {
@@ -60,6 +96,21 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
             onClick={() => dispatch({ type: 'CLEAR_ERROR' })}>{translateError(error.code, error.message)}</motion.div>
+        )}
+
+        {!error && requestTimedOut && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
+          >
+            <p>{translateError('connection_timeout', 'Connection timed out. Please try again.')}</p>
+            <button
+              onClick={retryLastAction}
+              disabled={!connected}
+              className="mt-2 px-3 py-1 border border-primary text-on-surface hover:bg-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {t('app.reconnectNow')}
+            </button>
+          </motion.div>
         )}
 
         <div className="bg-surface-alt border border-border p-6">
@@ -85,6 +136,21 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
           className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
           onClick={() => dispatch({ type: 'CLEAR_ERROR' })}>{translateError(error.code, error.message)}</motion.div>
+      )}
+
+      {!error && requestTimedOut && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-4 text-center"
+        >
+          <p>{translateError('connection_timeout', 'Connection timed out. Please try again.')}</p>
+          <button
+            onClick={retryLastAction}
+            disabled={!connected}
+            className="mt-2 px-3 py-1 border border-primary text-on-surface hover:bg-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {t('app.reconnectNow')}
+          </button>
+        </motion.div>
       )}
 
       <div className="bg-surface-alt border border-border p-6 mb-4">

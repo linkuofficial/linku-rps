@@ -23,6 +23,7 @@ const dict: Dict = {
     'error.room_no_longer_exists': '房間已不存在',
     'error.reconnect_auth_failed': '重連驗證失敗',
     'error.opponent_disconnected': '對手已斷線，等待最多 30 秒讓對方重新連線。',
+    'error.connection_timeout': '連線逾時，請稍後再試。',
 
     'toolSelector.title': 'Linku 工具箱',
     'toolSelector.subtitle': '多人同步小工具。建立房間後分享連結即可。',
