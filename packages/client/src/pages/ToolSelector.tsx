@@ -71,13 +71,13 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
 
     const handleJoin = () => {
         const code = joinCode.trim().toUpperCase();
-        if (!code || code.length < 4 || pendingJoinCode) return;
+        if (!connected || !code || code.length < 4 || pendingJoinCode) return;
         setJoinTimeoutMessage(null);
         onJoinByCode?.(code);
     };
 
     const handleToolClick = (tool: ToolId) => {
-        if (!tool || loadingTool) return;
+        if (!connected || !tool || loadingTool || pendingJoinCode) return;
         onSelect(tool);
     };
 
@@ -114,7 +114,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                             <button
                                 key={tool.id}
                                 onClick={() => tool.enabled && handleToolClick(tool.id)}
-                                disabled={!tool.enabled || !!loadingTool}
+                                disabled={!connected || !tool.enabled || !!loadingTool || !!pendingJoinCode}
                                 aria-busy={loadingTool === tool.id}
                                 aria-label={`${displayNames[tool.id]} ${t('common.startNow')}`}
                                 className={`group flex aspect-square min-h-[136px] min-w-[136px] flex-shrink-0 flex-col items-center justify-center border p-4 text-center transition-colors sm:min-h-[160px] sm:min-w-[160px] sm:p-5 lg:min-h-[176px] lg:min-w-[176px] xl:min-h-[188px] xl:min-w-[188px] ${isRtl ? 'rtl' : ''} ${tool.enabled
@@ -135,6 +135,12 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                             </button>
                         ))}
                     </div>
+
+                    {!connected && (
+                        <div className="mt-4 text-center text-label-sm text-on-surface-variant">
+                            {t('app.disconnected')}
+                        </div>
+                    )}
 
                     {/* Join by code — skip tool selection for joiners */}
                     {onJoinByCode && (
@@ -187,7 +193,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                                 />
                                 <button
                                     onClick={handleJoin}
-                                    disabled={joinCode.trim().length < 4 || !!pendingJoinCode}
+                                    disabled={!connected || joinCode.trim().length < 4 || !!pendingJoinCode}
                                     className="shrink-0 px-5 py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {pendingJoinCode

@@ -115,10 +115,12 @@ export function useWebSocket(onMessage: MessageHandler, getReconnectMessage?: Re
     };
   }, [clearReconnectTimer, connect]);
 
-  const send = useCallback((msg: ClientMessage) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(msg));
+  const send = useCallback((msg: ClientMessage): boolean => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      return false;
     }
+    wsRef.current.send(JSON.stringify(msg));
+    return true;
   }, []);
 
   const reconnectNow = useCallback(() => {

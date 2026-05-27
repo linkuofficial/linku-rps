@@ -115,7 +115,13 @@ export default function App() {
       {isToolSelector ? (
         <Suspense fallback={pageFallback}>
           <ToolSelector
-            onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
+            onSelect={(tool) => {
+              if (!connected) {
+                dispatch({ type: 'ERROR', code: 'not_authenticated', message: t('app.disconnected') });
+                return;
+              }
+              dispatch({ type: 'SELECT_TOOL', tool });
+            }}
             connected={connected}
             onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
             pendingJoinCode={state.pendingJoinCode}

@@ -8,7 +8,7 @@ import { useI18n } from '../i18n';
 const BEST_OF_OPTIONS = [1, 3, 5, 7] as const;
 
 interface Props {
-  send: (msg: ClientMessage) => void;
+  send: (msg: ClientMessage) => boolean;
   connected: boolean;
   error: { code: string; message: string } | null;
   dispatch: React.Dispatch<GameAction>;
@@ -51,15 +51,18 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
     setLastAction(action);
     setRequestTimedOut(false);
     setSending(true);
+    let sent = false;
     if (action === 'create') {
-      send({ type: 'create_room', bestOf: usesBestOf ? bestOf : 1, tool });
-      return;
+      sent = send({ type: 'create_room', bestOf: usesBestOf ? bestOf : 1, tool });
+    } else if (action === 'join') {
+      sent = send({ type: 'join_room', roomId: joinCode.trim() });
+    } else {
+      sent = send({ type: 'create_room', bestOf: 1, tool });
     }
-    if (action === 'join') {
-      send({ type: 'join_room', roomId: joinCode.trim() });
-      return;
+    if (!sent) {
+      setSending(false);
+      setRequestTimedOut(true);
     }
-    send({ type: 'create_room', bestOf: 1, tool });
   };
 
   const createRoom = () => {
