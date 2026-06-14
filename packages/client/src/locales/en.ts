@@ -62,6 +62,7 @@ const dict: Dict = {
     'lobby.bestOf': 'Best of',
     'lobby.toolSyncHint': 'After creating a room, either side can use the tool and results are synced in real time.',
     'lobby.joinCodePlaceholder': 'Enter room code',
+    'lobby.joinCodeLength': 'Room code is {n} digits',
     'lobby.soloHint': 'Start a room immediately. Share the link to invite another player.',
     'common.startNow': 'Start now',
 

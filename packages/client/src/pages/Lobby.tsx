@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from '../lib/motion-lite';
 import type { ClientMessage } from '@rps/shared';
 import type { ToolId } from '@rps/shared';
+import { ROOM_CODE_LENGTH } from '@rps/shared';
 import type { GameAction } from '../hooks/useGameState';
 import { useI18n } from '../i18n';
 
@@ -71,7 +72,7 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
 
   const joinRoom = () => {
     const code = joinCode.trim();
-    if (!code || sending) return;
+    if (code.length !== ROOM_CODE_LENGTH || sending) return;
     runAction('join');
   };
 
@@ -193,12 +194,15 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
 
       <div className="bg-surface-alt border border-border p-6">
         <h2 className="text-label-sm text-on-surface-variant uppercase tracking-[0.05em] mb-4">{t('common.joinRoom')}</h2>
-        <input type="text" maxLength={4} inputMode="numeric" placeholder={t('lobby.joinCodePlaceholder')} value={joinCode}
+        <input type="text" maxLength={ROOM_CODE_LENGTH} inputMode="numeric" placeholder={t('lobby.joinCodePlaceholder')} value={joinCode}
           dir="ltr"
-          onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, ''))}
+          onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, ROOM_CODE_LENGTH))}
           onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
           className="w-full px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.4em] placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors mb-3" />
-        <button onClick={joinRoom} disabled={!connected || !joinCode.trim()}
+        {joinCode.length > 0 && joinCode.length !== ROOM_CODE_LENGTH && (
+          <p className="text-label-sm text-on-surface-variant mb-2 text-center">{t('lobby.joinCodeLength', { n: ROOM_CODE_LENGTH })}</p>
+        )}
+        <button onClick={joinRoom} disabled={!connected || joinCode.trim().length !== ROOM_CODE_LENGTH}
           className="w-full py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {t('common.join')}</button>
       </div>

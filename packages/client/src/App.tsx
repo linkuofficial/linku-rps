@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useGameState } from './hooks/useGameState';
 import { useDarkMode } from './hooks/useDarkMode';
@@ -7,10 +7,14 @@ import Icon from './components/Icon';
 import { useI18n } from './i18n';
 import ToolSelector from './pages/ToolSelector';
 import Game from './pages/Game';
-
-const Lobby = lazy(() => import('./pages/Lobby'));
-const Waiting = lazy(() => import('./pages/Waiting'));
-const Finished = lazy(() => import('./pages/Finished'));
+// Lobby/Waiting/Finished are imported eagerly (not lazy): Game already pulls the bulk of
+// the app into this chunk, and these three are tiny. Lazy-loading them only added a cold
+// chunk eval on the first navigation to each — a one-off main-thread freeze at the page
+// switch (P3). Bundling them here pays that cost once at initial load, behind the spinner.
+import Lobby from './pages/Lobby';
+import Waiting from './pages/Waiting';
+import Finished from './pages/Finished';
+import { isValidRoomCode } from '@rps/shared';
 
 import { RECONNECT_STORAGE_KEY } from './lib/storage-keys';
 
@@ -79,15 +83,46 @@ export default function App() {
     }
   }, [state.pendingJoinCode, connected, send]);
 
-  const pageFallback = null;
-  const isToolSelector = state.phase === 'tool_select';
-
-  // Preload lazy pages immediately so state transitions don't render a fallback.
+  // P2: auto-join a room passed via ?room=CODE on first load. Captured synchronously at
+  // render so the URL-sync effect below can't clear it before we read it. A reconnect
+  // snapshot (restoring the creator's own session) takes precedence over joining anew.
+  const initialRoomRef = useRef<string | null>(
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('room') : null,
+  );
+  const roomQueryHandledRef = useRef(false);
   useEffect(() => {
-    void import('./pages/Lobby');
-    void import('./pages/Waiting');
-    void import('./pages/Finished');
-  }, []);
+    if (roomQueryHandledRef.current) return;
+    roomQueryHandledRef.current = true;
+    const room = initialRoomRef.current;
+    if (!room || !isValidRoomCode(room)) return;
+    const raw = localStorage.getItem(RECONNECT_STORAGE_KEY);
+    if (raw) {
+      try {
+        const snapshot = JSON.parse(raw) as ReconnectSnapshot;
+        if (snapshot.roomId && snapshot.reconnectToken) return;
+      } catch { /* fall through to join */ }
+    }
+    dispatch({ type: 'SET_PENDING_JOIN', code: room });
+  }, [dispatch]);
+
+  // P2: reflect the active room in the address bar (?room=CODE) so copying the browser URL
+  // shares the room, matching the invite link. replaceState keeps wouter on "/" — App stays
+  // mounted, the reconnect flow is untouched. Cleared once the user is back at tool select.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (state.roomId) {
+      const target = `${window.location.pathname}?room=${state.roomId}`;
+      if (`${window.location.pathname}${window.location.search}` !== target) {
+        window.history.replaceState(null, '', target);
+      }
+      return;
+    }
+    if (state.phase === 'tool_select' && !state.pendingJoinCode && window.location.search) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [state.roomId, state.phase, state.pendingJoinCode]);
+
+  const isToolSelector = state.phase === 'tool_select';
 
   return (
     <div className="fixed inset-0 bg-surface">
@@ -113,23 +148,15 @@ export default function App() {
       )}
 
       {isToolSelector ? (
-        <Suspense fallback={pageFallback}>
-          <ToolSelector
-            onSelect={(tool) => {
-              if (!connected) {
-                dispatch({ type: 'ERROR', code: 'not_authenticated', message: t('app.disconnected') });
-                return;
-              }
-              dispatch({ type: 'SELECT_TOOL', tool });
-            }}
-            connected={connected}
-            onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
-            pendingJoinCode={state.pendingJoinCode}
-            onPendingJoinTimeout={() => dispatch({ type: 'CLEAR_PENDING_JOIN' })}
-            error={state.error}
-            onClearError={() => dispatch({ type: 'CLEAR_ERROR' })}
-          />
-        </Suspense>
+        <ToolSelector
+          onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
+          connected={connected}
+          onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
+          pendingJoinCode={state.pendingJoinCode}
+          onPendingJoinTimeout={() => dispatch({ type: 'CLEAR_PENDING_JOIN' })}
+          error={state.error}
+          onClearError={() => dispatch({ type: 'CLEAR_ERROR' })}
+        />
       ) : (
         <div className="flex h-full flex-col">
           <div className="mx-auto w-full max-w-md px-4 pt-4 sm:px-6">
@@ -160,26 +187,24 @@ export default function App() {
 
           <div className="flex-1 overflow-y-auto">
             <div className="mx-auto flex min-h-full w-full max-w-md items-center px-4 pb-6 sm:px-6">
-              <Suspense fallback={pageFallback}>
-                {state.phase === 'lobby' && state.tool && (
-                  <Lobby
-                    send={send}
-                    connected={connected}
-                    error={state.error}
-                    dispatch={dispatch}
-                    tool={state.tool}
-                  />
-                )}
-                {state.phase === 'waiting' && (
-                  <Waiting roomId={state.roomId!} bestOf={state.bestOf} tool={state.tool ?? 'rps'} />
-                )}
-                {state.phase === 'playing' && (
-                  <Game state={state} send={send} dispatch={dispatch} />
-                )}
-                {state.phase === 'finished' && (
-                  <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
-                )}
-              </Suspense>
+              {state.phase === 'lobby' && state.tool && (
+                <Lobby
+                  send={send}
+                  connected={connected}
+                  error={state.error}
+                  dispatch={dispatch}
+                  tool={state.tool}
+                />
+              )}
+              {state.phase === 'waiting' && (
+                <Waiting roomId={state.roomId!} bestOf={state.bestOf} tool={state.tool ?? 'rps'} />
+              )}
+              {state.phase === 'playing' && (
+                <Game state={state} send={send} dispatch={dispatch} />
+              )}
+              {state.phase === 'finished' && (
+                <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
+              )}
             </div>
           </div>
         </div>

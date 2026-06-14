@@ -145,6 +145,26 @@ describe('websocket rate limiting integration', () => {
         await closeClient(host);
     });
 
+    it('survives a structurally malformed message and stays responsive', async () => {
+        const client = await openClient();
+
+        // `join_room` with no `roomId` used to throw inside the message handler
+        // (msg.roomId.toUpperCase()), escaping to uncaughtException and taking the whole
+        // server down. It must now be contained and answered with an error.
+        const errorPromise = waitForMessage(client, (msg): msg is Extract<ServerMessage, { type: 'error' }> => msg.type === 'error');
+        client.send(JSON.stringify({ type: 'join_room' }));
+        const error = await errorPromise;
+        expect(error.type).toBe('error');
+
+        // The server must still handle subsequent messages — proves it did not crash.
+        const createdPromise = waitForMessage(client, (msg): msg is Extract<ServerMessage, { type: 'room_created' }> => msg.type === 'room_created');
+        client.send(JSON.stringify({ type: 'create_room', bestOf: 1, tool: 'coin' }));
+        const created = await createdPromise;
+        expect(created.tool).toBe('coin');
+
+        await closeClient(client);
+    });
+
     it('supports solo reaction rounds after readying up', async () => {
         const host = await openClient();
 

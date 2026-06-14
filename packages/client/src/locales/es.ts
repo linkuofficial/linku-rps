@@ -62,6 +62,7 @@ const dict: Dict = {
     'lobby.bestOf': 'Mejor de',
     'lobby.toolSyncHint': 'Tras crear la sala, cualquiera puede usar la herramienta y los resultados se sincronizan en tiempo real.',
     'lobby.joinCodePlaceholder': 'Introduce el codigo de sala',
+    'lobby.joinCodeLength': 'El codigo de sala tiene {n} digitos',
     'lobby.soloHint': 'Inicia una sala de inmediato. Comparte el enlace para invitar a otro jugador.',
     'common.startNow': 'Empezar ahora',
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useRoute } from 'wouter';
 import type { ToolId } from '@rps/shared';
+import { inferToolFromCode } from '@rps/shared';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameState } from '../hooks/useGameState';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -11,16 +12,12 @@ import { useI18n } from '../i18n';
 import LanguageSwitcherCompact from '../components/LanguageSwitcherCompact';
 import Icon from '../components/Icon';
 
-const TOOL_PREFIXES: Record<string, ToolId> = {
-  '1': 'rps', '2': 'coin', '3': 'wheel', '4': 'dice', '5': 'draw', '6': 'reaction',
-};
-
 export default function JoinPage() {
   const { t, toolName, translateError } = useI18n();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const [, params] = useRoute('/join/:code');
   const code = params?.code?.toUpperCase();
-  const inferredTool: ToolId | null = code ? (TOOL_PREFIXES[code.charAt(0)] ?? null) : null;
+  const inferredTool: ToolId | null = inferToolFromCode(code);
   const [, navigate] = useLocation();
   const { state, dispatch, handleMessage } = useGameState();
   const stateRef = useRef(state);

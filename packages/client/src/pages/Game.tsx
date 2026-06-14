@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type TouchEvent } from 'react';
+import { useCallback, useRef, useState, type TouchEvent } from 'react';
 import { motion } from '../lib/motion-lite';
 import type { ClientMessage } from '@rps/shared';
 import type { GameAction, GameState } from '../hooks/useGameState';
 import EmojiFloats from '../components/EmojiFloats';
-import Icon from '../components/Icon';
 import { useI18n } from '../i18n';
 import type { GameToolProps } from './tools/types';
 import './game.css';
@@ -41,28 +40,12 @@ export default function Game({ state, send, dispatch }: Props) {
     const { t, locale, translateError } = useI18n();
     const isRtl = locale === 'ar';
     const isChatSwipeEnabled = getGestureMode() === 'minimal';
-    const inviteUrl = state.tool !== null && state.roomId
-        ? `${window.location.origin}/join/${state.roomId}`
-        : '';
 
     const [showChat, setShowChat] = useState(false);
-    const [inviteCopied, setInviteCopied] = useState(false);
     const chatSwipeStartRef = useRef<{ x: number; y: number; ts: number } | null>(null);
 
     const sendChat = (text: string) => send({ type: 'chat', text });
     const sendEmoji = (emoji: string) => send({ type: 'emoji', emoji });
-
-    const copyInvite = async () => {
-        if (!inviteUrl) return;
-        await navigator.clipboard.writeText(inviteUrl);
-        setInviteCopied(true);
-    };
-
-    useEffect(() => {
-        if (!inviteCopied) return;
-        const timer = window.setTimeout(() => setInviteCopied(false), 1600);
-        return () => window.clearTimeout(timer);
-    }, [inviteCopied]);
 
     const handleChatSwipeStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
         if (!isChatSwipeEnabled) return;

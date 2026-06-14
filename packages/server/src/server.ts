@@ -25,6 +25,7 @@ import {
     type WheelOption,
     BEATS,
     VALID_CHOICES,
+    createRoomCode,
 } from '@rps/shared';
 
 export const app = express();
@@ -208,20 +209,10 @@ function isGameplayReady(room: Room | undefined): room is Room {
     return supportsSoloPlay(room.tool) || !!room.b;
 }
 
-const TOOL_ID_PREFIX: Record<ToolId, string> = {
-    rps: '1',
-    coin: '2',
-    wheel: '3',
-    dice: '4',
-    draw: '5',
-    reaction: '6',
-};
-
 function createRoomId(tool: ToolId): string {
-    const prefix = TOOL_ID_PREFIX[tool];
-    let roomId = prefix + (Math.floor(Math.random() * 9000) + 1000).toString();
+    let roomId = createRoomCode(tool);
     while (rooms[roomId]) {
-        roomId = prefix + (Math.floor(Math.random() * 9000) + 1000).toString();
+        roomId = createRoomCode(tool);
     }
     return roomId;
 }
@@ -613,6 +604,11 @@ wss.on('connection', (ws) => {
             }, reason);
         };
 
+        // A valid-JSON message can still be malformed in shape (e.g. join_room with no
+        // roomId, wheel_spin with no options). Those would throw inside the switch and the
+        // exception would escape the ws 'message' listener to uncaughtException, taking the
+        // whole server (every active room) down. Contain handler errors per-message instead.
+        try {
         switch (msg.type) {
             case 'create_room': {
                 // Detach this WebSocket from any previously owned room slot to prevent
@@ -1446,6 +1442,15 @@ wss.on('connection', (ws) => {
                 });
                 return;
             }
+        }
+        } catch (handlerErr) {
+            logStructured('error', 'ws.handler_threw', {
+                roomId,
+                playerSlot,
+                msgType: msg.type,
+                error: handlerErr instanceof Error ? handlerErr.message : String(handlerErr),
+            });
+            sendError(ws, 'invalid_message_type', 'Malformed message', { roomId, playerSlot });
         }
     });
 

@@ -1,5 +1,9 @@
 ﻿import { useReducer, useCallback } from 'react';
 import type { Choice, CoinFace, DrawMode, ErrorCode, InvalidGameStateReason, PlayerSlot, ReactionMode, ReactionPhase, ServerMessage, ToolId, WheelOption } from '@rps/shared';
+import { inferToolFromCode } from '@rps/shared';
+
+/** Cap retained client-side history (CSV-export source) to avoid unbounded growth in long sessions. */
+const MAX_HISTORY = 300;
 
 export type GamePhase = 'tool_select' | 'lobby' | 'waiting' | 'playing' | 'finished';
 
@@ -209,22 +213,13 @@ const initialState: GameState = {
     pendingJoinCode: null,
 };
 
-const ROOM_ID_TOOL_PREFIX: Record<string, ToolId> = {
-    '1': 'rps',
-    '2': 'coin',
-    '3': 'wheel',
-    '4': 'dice',
-    '5': 'draw',
-    '6': 'reaction',
-};
-
 function isToolId(value: unknown): value is ToolId {
     return value === 'rps' || value === 'coin' || value === 'dice' || value === 'wheel' || value === 'draw' || value === 'reaction';
 }
 
+// Single source of truth for the tool→prefix mapping lives in @rps/shared.
 function inferToolFromRoomId(roomId: string | null | undefined): ToolId | null {
-    if (!roomId) return null;
-    return ROOM_ID_TOOL_PREFIX[roomId.charAt(0)] ?? null;
+    return inferToolFromCode(roomId);
 }
 
 function resolveIncomingTool(candidate: unknown, roomId: string | null | undefined, fallback: ToolId | null): ToolId | null {
@@ -364,7 +359,7 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 history: state.roomId
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'rps',
                         event: 'rps_round',
@@ -395,7 +390,7 @@ function reducer(state: GameState, action: Action): GameState {
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'coin',
                         event: 'coin_flip',
@@ -424,7 +419,7 @@ function reducer(state: GameState, action: Action): GameState {
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'dice',
                         event: 'dice_roll',
@@ -457,7 +452,7 @@ function reducer(state: GameState, action: Action): GameState {
                 },
                 round: action.round + 1,
                 history: state.roomId
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'dice',
                         event: 'dice_duel',
@@ -487,7 +482,7 @@ function reducer(state: GameState, action: Action): GameState {
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'wheel',
                         event: 'wheel_spin',
@@ -527,7 +522,7 @@ function reducer(state: GameState, action: Action): GameState {
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'draw',
                         event: action.mode === 'pick' ? 'draw_pick' : 'draw_shuffle',
@@ -571,7 +566,7 @@ function reducer(state: GameState, action: Action): GameState {
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId && action.phase !== state.reactionState?.phase
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'reaction',
                         event: 'reaction_state',
@@ -615,7 +610,7 @@ function reducer(state: GameState, action: Action): GameState {
                 opponentReady: false,
                 round: action.round + 1,
                 history: state.roomId
-                    ? [...state.history, {
+                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
                         roomId: state.roomId,
                         tool: state.tool ?? 'reaction',
                         event: 'reaction_result',

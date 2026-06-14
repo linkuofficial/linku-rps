@@ -362,3 +362,48 @@ export const BEATS: Record<Choice, Choice> = {
 export const QUICK_EMOJIS = ['👊', '🎉', '😤', '🤣', '👏', '💀'] as const;
 
 export const BEST_OF_OPTIONS = [1, 3, 5, 7] as const;
+
+// ===== Room Codes =====
+
+/** Tool → leading digit of a room code. Single source of truth for both ends. */
+export const TOOL_CODE_PREFIX: Record<ToolId, string> = {
+  rps: '1',
+  coin: '2',
+  wheel: '3',
+  dice: '4',
+  draw: '5',
+  reaction: '6',
+};
+
+/**
+ * Total length of a room code (tool-prefix digit + random digits).
+ * The join inputs' maxLength MUST equal this — keep them aligned via this constant.
+ */
+export const ROOM_CODE_LENGTH = 5;
+
+const ROOM_CODE_PREFIX_TO_TOOL = Object.fromEntries(
+  Object.entries(TOOL_CODE_PREFIX).map(([tool, prefix]) => [prefix, tool as ToolId]),
+) as Record<string, ToolId>;
+
+/** Generate a room code: tool prefix + random digits, total ROOM_CODE_LENGTH chars. */
+export function createRoomCode(tool: ToolId): string {
+  const prefix = TOOL_CODE_PREFIX[tool];
+  const digits = ROOM_CODE_LENGTH - prefix.length;
+  const min = 10 ** (digits - 1);
+  const max = 10 ** digits;
+  const n = Math.floor(Math.random() * (max - min)) + min;
+  return prefix + n.toString();
+}
+
+/** Infer the tool from a room code's leading digit, or null if unrecognised. */
+export function inferToolFromCode(code: string | null | undefined): ToolId | null {
+  if (!code) return null;
+  return ROOM_CODE_PREFIX_TO_TOOL[code.charAt(0)] ?? null;
+}
+
+/** A room code is valid when it has the exact length, is all digits, and has a known tool prefix. */
+export function isValidRoomCode(code: string): boolean {
+  if (code.length !== ROOM_CODE_LENGTH) return false;
+  if (!/^\d+$/.test(code)) return false;
+  return inferToolFromCode(code) !== null;
+}

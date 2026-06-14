@@ -62,6 +62,7 @@ const dict: Dict = {
     'lobby.bestOf': '局數（Best of）',
     'lobby.toolSyncHint': '建立房間後，任一方操作工具都會即時同步結果。',
     'lobby.joinCodePlaceholder': '輸入房間代碼',
+    'lobby.joinCodeLength': '房間代碼為 {n} 碼',
     'lobby.soloHint': '立即開始。分享連結可邀請其他玩家加入。',
     'common.startNow': '立即開始',
 

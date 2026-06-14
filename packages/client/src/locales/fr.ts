@@ -62,6 +62,7 @@ const dict: Dict = {
     'lobby.bestOf': 'Manche gagnante',
     'lobby.toolSyncHint': 'Apres création de la salle, les actions des deux joueurs se synchronisent en temps réel.',
     'lobby.joinCodePlaceholder': 'Entrez le code de salle',
+    'lobby.joinCodeLength': 'Le code de salle comporte {n} chiffres',
     'lobby.soloHint': 'Démarrez une salle immédiatement. Partagez le lien pour inviter un autre joueur.',
     'common.startNow': 'Démarrer maintenant',
 

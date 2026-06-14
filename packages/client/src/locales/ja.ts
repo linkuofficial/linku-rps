@@ -62,6 +62,7 @@ const dict: Dict = {
     'lobby.bestOf': '先取本数',
     'lobby.toolSyncHint': 'ルーム作成後は、どちらが操作しても結果がリアルタイムで同期されます。',
     'lobby.joinCodePlaceholder': 'ルームコードを入力',
+    'lobby.joinCodeLength': 'ルームコードは{n}桁です',
     'lobby.soloHint': 'すぐに開始できます。リンクを共有して他のプレイヤーを招待できます。',
     'common.startNow': '今すぐ始める',
 

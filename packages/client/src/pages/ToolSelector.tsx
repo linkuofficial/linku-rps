@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from '../lib/motion-lite';
 import { Link } from 'wouter';
 import type { ToolId } from '@rps/shared';
+import { ROOM_CODE_LENGTH } from '@rps/shared';
 import { useI18n } from '../i18n';
 import { useDarkMode } from '../hooks/useDarkMode';
 import LanguageSwitcherCompact from '../components/LanguageSwitcherCompact';
@@ -71,13 +72,17 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
 
     const handleJoin = () => {
         const code = joinCode.trim().toUpperCase();
-        if (!connected || !code || code.length < 4 || pendingJoinCode) return;
+        if (!connected || code.length !== ROOM_CODE_LENGTH || pendingJoinCode) return;
         setJoinTimeoutMessage(null);
         onJoinByCode?.(code);
     };
 
     const handleToolClick = (tool: ToolId) => {
-        if (!connected || !tool || loadingTool || pendingJoinCode) return;
+        // Selecting a tool only navigates to the Lobby — it needs no live connection,
+        // so we must NOT gate it on `connected`. Gating here swallowed the first click
+        // while the WebSocket was still connecting (user had to click twice). The Lobby
+        // shows its own connection banner and disables create/join until connected.
+        if (!tool || loadingTool || pendingJoinCode) return;
         onSelect(tool);
     };
 
@@ -114,7 +119,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                             <button
                                 key={tool.id}
                                 onClick={() => tool.enabled && handleToolClick(tool.id)}
-                                disabled={!connected || !tool.enabled || !!loadingTool || !!pendingJoinCode}
+                                disabled={!tool.enabled || !!loadingTool || !!pendingJoinCode}
                                 aria-busy={loadingTool === tool.id}
                                 aria-label={`${displayNames[tool.id]} ${t('common.startNow')}`}
                                 className={`group flex aspect-square min-h-[136px] min-w-[136px] flex-shrink-0 flex-col items-center justify-center border p-4 text-center transition-colors sm:min-h-[160px] sm:min-w-[160px] sm:p-5 lg:min-h-[176px] lg:min-w-[176px] xl:min-h-[188px] xl:min-w-[188px] ${isRtl ? 'rtl' : ''} ${tool.enabled
@@ -182,18 +187,19 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                                 <input
                                     ref={inputRef}
                                     type="text"
-                                    maxLength={4}
+                                    inputMode="numeric"
+                                    maxLength={ROOM_CODE_LENGTH}
                                     placeholder={t('lobby.joinCodePlaceholder')}
                                     value={joinCode}
                                     dir="ltr"
                                     disabled={!!pendingJoinCode}
-                                    onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                    onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, ROOM_CODE_LENGTH))}
                                     onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                                     className="flex-1 min-w-0 px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors disabled:opacity-50"
                                 />
                                 <button
                                     onClick={handleJoin}
-                                    disabled={!connected || joinCode.trim().length < 4 || !!pendingJoinCode}
+                                    disabled={!connected || joinCode.trim().length !== ROOM_CODE_LENGTH || !!pendingJoinCode}
                                     className="shrink-0 px-5 py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {pendingJoinCode
@@ -202,6 +208,9 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                                     }
                                 </button>
                             </div>
+                            {joinCode.length > 0 && joinCode.length !== ROOM_CODE_LENGTH && (
+                                <p className="mt-2 text-label-sm text-on-surface-variant text-center">{t('lobby.joinCodeLength', { n: ROOM_CODE_LENGTH })}</p>
+                            )}
                         </div>
                     )}
                 </div>

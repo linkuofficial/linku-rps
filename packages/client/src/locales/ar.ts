@@ -62,6 +62,7 @@ const dict: Dict = {
 	'lobby.bestOf': 'الأفضل من',
 	'lobby.toolSyncHint': 'بعد إنشاء الغرفة، يمكن لأي طرف استخدام الأداة وستتزامن النتائج فورا.',
 	'lobby.joinCodePlaceholder': 'أدخل رمز الغرفة',
+	'lobby.joinCodeLength': 'رمز الغرفة مكوّن من {n} أرقام',
 	'lobby.soloHint': 'ابدأ الغرفة فورًا. شارك الرابط لدعوة لاعب آخر.',
 	'common.startNow': 'ابدأ الآن',
 
