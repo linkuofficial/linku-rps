@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "Online rock-paper-scissors with rooms",
   "private": true,
+  "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev:server": "pnpm --filter @rps/server dev",
     "dev:client": "pnpm --filter @rps/client dev",
