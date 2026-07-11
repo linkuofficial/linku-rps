@@ -145,31 +145,38 @@ describe('websocket rate limiting integration', () => {
         await closeClient(host);
     });
 
-    it('survives a structurally malformed message and stays responsive', async () => {
+    // Asserts the full error envelope — not just `type: 'error'` — and that it never
+    // carries the raw exception message or a stack trace. Runs each payload on its own
+    // fresh client so a single bad payload can't be masked by state left over from the
+    // previous one, then proves *that same connection* can still create a room right
+    // after receiving the error, showing the connection/room machinery is untouched.
+    async function expectContainedError(
+        payload: string,
+        expectedMessage: string,
+    ): Promise<void> {
         const client = await openClient();
 
-        // `join_room` with no `roomId` used to throw inside the message handler
-        // (msg.roomId.toUpperCase()), escaping to uncaughtException and taking the whole
-        // server down. It must now be contained and answered with an error.
         const errorPromise = waitForMessage(client, (msg): msg is Extract<ServerMessage, { type: 'error' }> => msg.type === 'error');
-        client.send(JSON.stringify({ type: 'join_room' }));
+        client.send(payload);
         const error = await errorPromise;
-        expect(error.type).toBe('error');
+        expect(error).toMatchObject({ type: 'error', code: 'invalid_message_type', message: expectedMessage });
+        expect(error).not.toHaveProperty('stack');
+        expect(JSON.stringify(error)).not.toMatch(/TypeError|at\s+\S+\s+\(/);
 
-        // The server must still handle subsequent messages — proves it did not crash.
         const createdPromise = waitForMessage(client, (msg): msg is Extract<ServerMessage, { type: 'room_created' }> => msg.type === 'room_created');
         client.send(JSON.stringify({ type: 'create_room', bestOf: 1, tool: 'coin' }));
         const created = await createdPromise;
         expect(created.tool).toBe('coin');
 
         await closeClient(client);
-    });
+    }
 
-    it('never crashes on structurally malformed payloads and keeps serving', async () => {
-        // Each of these is valid JSON but not a valid message envelope. `null` is
-        // the one that used to read `.type` off null and take the whole process
-        // (every active room) down via uncaughtException.
-        const malformed = [
+    it('rejects structurally invalid envelopes with a stable error and stays usable', async () => {
+        // Each of these is valid JSON but not a valid message envelope: null, an array,
+        // a bare scalar, or an object with a missing/unknown `type`. None of these
+        // reach the handler switch — the server answers with payloadGuard's fixed
+        // message instead.
+        const envelopeRejections = [
             'null',
             '"just a string"',
             '42',
@@ -180,30 +187,52 @@ describe('websocket rate limiting integration', () => {
             '{"foo":1}',
             '{"type":42}',
             '{"type":"totally_unknown"}',
-            '{"type":"join_room"}', // known type, missing required roomId
         ];
 
-        const client = await openClient();
-        for (const payload of malformed) {
+        for (const payload of envelopeRejections) {
+            await expectContainedError(payload, 'Unsupported message type');
+        }
+    });
+
+    it('contains handler exceptions for known types with missing/dirty required fields', async () => {
+        // These pass the envelope guard (a supported `type`) but are missing or have
+        // the wrong type for a field the handler reads unconditionally — e.g. `join_room`
+        // calling `msg.roomId.toUpperCase()`. That throw is caught by the per-message
+        // try/catch and answered with the handler-level message, distinct from the
+        // envelope-guard message above, and still without leaking the exception.
+        const handlerThrowPayloads = [
+            '{"type":"join_room"}',
+            '{"type":"join_room","roomId":null}',
+            '{"type":"join_room","roomId":{}}',
+        ];
+
+        for (const payload of handlerThrowPayloads) {
+            await expectContainedError(payload, 'Malformed message');
+        }
+    });
+
+    it('rejects dirty choice field values via the existing invalid_game_state error, not a crash', async () => {
+        const { host, guest } = await setupRoom('rps');
+
+        // `choice` is a known type inside an active room; these values are wrong-typed
+        // rather than throw-inducing, so they should hit the existing
+        // `choice_invalid_value` validation, not the outer catch-all.
+        const dirtyChoices: unknown[] = [null, {}, 42, 'lizard'];
+        for (const choice of dirtyChoices) {
             const errorPromise = waitForMessage(
-                client,
-                (msg): msg is Extract<ServerMessage, { type: 'error' }> => msg.type === 'error',
+                host,
+                (msg): msg is Extract<ServerMessage, { type: 'error' }> =>
+                    msg.type === 'error' && msg.code === 'invalid_game_state' && msg.reason === 'choice_invalid_value',
             );
-            client.send(payload);
-            const error = await errorPromise;
-            expect(error.type).toBe('error');
+            host.send(JSON.stringify({ type: 'choice', choice }));
+            await errorPromise;
         }
 
-        // The process survived every bad payload: it can still create a room.
-        const createdPromise = waitForMessage(
-            client,
-            (msg): msg is Extract<ServerMessage, { type: 'room_created' }> => msg.type === 'room_created',
-        );
-        client.send(JSON.stringify({ type: 'create_room', bestOf: 1, tool: 'coin' }));
-        const created = await createdPromise;
-        expect(created.tool).toBe('coin');
+        expect(host.readyState).toBe(WebSocket.OPEN);
+        expect(guest.readyState).toBe(WebSocket.OPEN);
 
-        await closeClient(client);
+        await closeClient(host);
+        await closeClient(guest);
     });
 
     it('ignores a cheat field on choice and resolves by real RPS rules', async () => {
