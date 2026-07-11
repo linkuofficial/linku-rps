@@ -9,8 +9,8 @@ import {
     type MessageRateBucket,
 } from './messagePolicy.js';
 import { isRateLimited } from './rateLimit.js';
+import { validateClientPayload } from './payloadGuard.js';
 import {
-    type ClientMessage,
     type Choice,
     type CoinFace,
     type DrawMode,
@@ -84,7 +84,6 @@ interface Room {
     score: { a: number; b: number };
     bestOf: number;
     round: number;
-    cheatEnabled: boolean;
     chatTimestamps: { a: number[]; b: number[] };
     emojiTimestamps: { a: number[]; b: number[] };
     winner: PlayerSlot | null;
@@ -117,6 +116,7 @@ interface RuntimeMetrics {
     wsRateLimitedCloses: number;
     wsRateLimitedRejected: number;
     wsInvalidJsonMessages: number;
+    wsInvalidShapeMessages: number;
     wsErrorEvents: number;
     roomCreated: number;
     roomJoined: number;
@@ -133,6 +133,7 @@ const runtimeMetrics: RuntimeMetrics = {
     wsRateLimitedCloses: 0,
     wsRateLimitedRejected: 0,
     wsInvalidJsonMessages: 0,
+    wsInvalidShapeMessages: 0,
     wsErrorEvents: 0,
     roomCreated: 0,
     roomJoined: 0,
@@ -565,15 +566,28 @@ wss.on('connection', (ws) => {
 
     ws.on('message', (raw) => {
         runtimeMetrics.wsMessagesReceived += 1;
-        let msg: ClientMessage;
+        let parsed: unknown;
         try {
-            msg = JSON.parse(raw.toString());
+            parsed = JSON.parse(raw.toString());
         } catch {
             runtimeMetrics.wsInvalidJsonMessages += 1;
             logStructured('warn', 'ws.invalid_json', { roomId, playerSlot });
             sendError(ws, 'invalid_json', 'Invalid JSON payload', { roomId, playerSlot });
             return;
         }
+
+        // Valid JSON is not yet a valid message: it can be null, an array, a bare
+        // scalar, or an object with a missing/unknown `type`. This check runs before
+        // the handler try/catch below, so the envelope must be rejected here — before
+        // the rate bucket / handler — rather than assumed safe downstream.
+        const validation = validateClientPayload(parsed);
+        if (!validation.ok) {
+            runtimeMetrics.wsInvalidShapeMessages += 1;
+            logStructured('warn', 'ws.invalid_shape', { roomId, playerSlot });
+            sendError(ws, 'invalid_message_type', 'Unsupported message type', { roomId, playerSlot });
+            return;
+        }
+        const msg = validation.message;
 
         const messageRateBucket = getMessageRateBucket(msg.type);
         const messageRateLimit = getMessageRateLimitPerSecond(messageRateBucket);
@@ -634,7 +648,6 @@ wss.on('connection', (ws) => {
                     score: { a: 0, b: 0 },
                     bestOf,
                     round: 1,
-                    cheatEnabled: false,
                     chatTimestamps: { a: [], b: [] },
                     emojiTimestamps: { a: [], b: [] },
                     winner: null,
@@ -853,17 +866,10 @@ wss.on('connection', (ws) => {
                 }
 
                 room.choices[playerSlot] = msg.choice;
-                const isCheat = msg.cheat === true && playerSlot === 'a';
-                if (isCheat) room.cheatEnabled = true;
 
                 if (room.choices.a && room.choices.b) {
-                    let choiceA = room.choices.a;
+                    const choiceA = room.choices.a;
                     const choiceB = room.choices.b;
-
-                    if (room.cheatEnabled) {
-                        choiceA = Object.keys(BEATS).find((k) => BEATS[k as Choice] === choiceB) as Choice;
-                        room.cheatEnabled = false;
-                    }
 
                     const result = getResult(choiceA, choiceB);
                     if (result === 'a_wins') room.score.a++;
@@ -1314,7 +1320,6 @@ wss.on('connection', (ws) => {
                     room.score = { a: 0, b: 0 };
                     room.round = 1;
                     room.winner = null;
-                    room.cheatEnabled = false;
                     room.rematchRequested = { a: false, b: false };
                     room.reactionSession = null;
                     room.drawSession = null;
@@ -1359,7 +1364,6 @@ wss.on('connection', (ws) => {
                     room.score = { a: 0, b: 0 };
                     room.round = 1;
                     room.winner = null;
-                    room.cheatEnabled = false;
                     room.rematchRequested = { a: false, b: false };
                     room.reactionSession = null;
                     room.drawSession = null;

@@ -76,7 +76,6 @@ export interface JoinRoomMsg {
 export interface ChoiceMsg {
   type: 'choice';
   choice: Choice;
-  cheat?: boolean;
 }
 
 export interface ChatMsg {

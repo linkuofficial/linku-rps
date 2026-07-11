@@ -165,6 +165,68 @@ describe('websocket rate limiting integration', () => {
         await closeClient(client);
     });
 
+    it('never crashes on structurally malformed payloads and keeps serving', async () => {
+        // Each of these is valid JSON but not a valid message envelope. `null` is
+        // the one that used to read `.type` off null and take the whole process
+        // (every active room) down via uncaughtException.
+        const malformed = [
+            'null',
+            '"just a string"',
+            '42',
+            'true',
+            '[]',
+            '[{"type":"create_room"}]',
+            '{}',
+            '{"foo":1}',
+            '{"type":42}',
+            '{"type":"totally_unknown"}',
+            '{"type":"join_room"}', // known type, missing required roomId
+        ];
+
+        const client = await openClient();
+        for (const payload of malformed) {
+            const errorPromise = waitForMessage(
+                client,
+                (msg): msg is Extract<ServerMessage, { type: 'error' }> => msg.type === 'error',
+            );
+            client.send(payload);
+            const error = await errorPromise;
+            expect(error.type).toBe('error');
+        }
+
+        // The process survived every bad payload: it can still create a room.
+        const createdPromise = waitForMessage(
+            client,
+            (msg): msg is Extract<ServerMessage, { type: 'room_created' }> => msg.type === 'room_created',
+        );
+        client.send(JSON.stringify({ type: 'create_room', bestOf: 1, tool: 'coin' }));
+        const created = await createdPromise;
+        expect(created.tool).toBe('coin');
+
+        await closeClient(client);
+    });
+
+    it('ignores a cheat field on choice and resolves by real RPS rules', async () => {
+        const { host, guest } = await setupRoom('rps');
+
+        // Player A tries the old backdoor: rock + cheat:true. Under the removed
+        // logic the server rewrote A's choice to beat B, forcing an A win. Now the
+        // extra field is ignored and rock genuinely loses to paper.
+        host.send(JSON.stringify({ type: 'choice', choice: 'rock', cheat: true }));
+        guest.send(JSON.stringify({ type: 'choice', choice: 'paper' }));
+
+        const result = await waitForMessage(
+            host,
+            (msg): msg is Extract<ServerMessage, { type: 'round_result' }> => msg.type === 'round_result',
+        );
+        expect(result.choices).toEqual({ a: 'rock', b: 'paper' });
+        expect(result.result).toBe('b_wins');
+        expect(result.score).toEqual({ a: 0, b: 1 });
+
+        await closeClient(host);
+        await closeClient(guest);
+    });
+
     it('supports solo reaction rounds after readying up', async () => {
         const host = await openClient();
 

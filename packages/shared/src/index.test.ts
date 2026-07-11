@@ -62,4 +62,13 @@ describe('room codes', () => {
         expect(isValidRoomCode('91698')).toBe(false); // unknown prefix '9'
         expect(isValidRoomCode('1169a')).toBe(false); // non-digit
     });
+
+    it('infers tool from a valid prefix and returns null for missing/unknown codes', () => {
+        expect(inferToolFromCode('10000')).toBe('rps');
+        expect(inferToolFromCode('90000')).toBeNull(); // unknown prefix
+        // The empty/null/undefined guard — the previously uncovered branch.
+        expect(inferToolFromCode('')).toBeNull();
+        expect(inferToolFromCode(null)).toBeNull();
+        expect(inferToolFromCode(undefined)).toBeNull();
+    });
 });
