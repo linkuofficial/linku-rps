@@ -5,6 +5,9 @@ import { inferToolFromCode } from '@rps/shared';
 /** Cap retained client-side history (CSV-export source) to avoid unbounded growth in long sessions. */
 const MAX_HISTORY = 300;
 
+/** Stands in for the server room id when the game is played offline in the browser. */
+const LOCAL_ROOM_ID = 'local';
+
 export type GamePhase = 'tool_select' | 'lobby' | 'waiting' | 'playing' | 'finished';
 
 export interface ChatEntry {
@@ -358,20 +361,18 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoice: null,
                 myChoiceSubmitted: false,
                 opponentReady: false,
-                history: state.roomId
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
-                        tool: state.tool ?? 'rps',
-                        event: 'rps_round',
-                        round: action.round,
-                        actor: state.mySlot ?? 'a',
-                        result: action.result,
-                        scoreA: action.score.a,
-                        scoreB: action.score.b,
-                        timestamp: Date.now(),
-                        details: `${action.choices.a} vs ${action.choices.b}`,
-                    }]
-                    : state.history,
+                history: [...state.history.slice(-(MAX_HISTORY - 1)), {
+                    roomId: state.roomId ?? LOCAL_ROOM_ID,
+                    tool: state.tool ?? 'rps',
+                    event: 'rps_round',
+                    round: action.round,
+                    actor: state.mySlot ?? 'a',
+                    result: action.result,
+                    scoreA: action.score.a,
+                    scoreB: action.score.b,
+                    timestamp: Date.now(),
+                    details: `${action.choices.a} vs ${action.choices.b}`,
+                }],
             };
         case 'GAME_OVER':
             return { ...state, phase: 'finished', winner: action.winner, rematchRequestedByMe: false, rematchRequestedByOpponent: false };
@@ -389,20 +390,18 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
-                history: state.roomId
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
-                        tool: state.tool ?? 'coin',
-                        event: 'coin_flip',
-                        round: action.round,
-                        actor: action.by,
-                        result: action.result,
-                        scoreA: null,
-                        scoreB: null,
-                        timestamp: action.timestamp,
-                        details: action.result,
-                    }]
-                    : state.history,
+                history: [...state.history.slice(-(MAX_HISTORY - 1)), {
+                    roomId: state.roomId ?? LOCAL_ROOM_ID,
+                    tool: state.tool ?? 'coin',
+                    event: 'coin_flip',
+                    round: action.round,
+                    actor: action.by,
+                    result: action.result,
+                    scoreA: null,
+                    scoreB: null,
+                    timestamp: action.timestamp,
+                    details: action.result,
+                }],
             };
         case 'DICE_RESULT':
             return {
@@ -418,20 +417,18 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
-                history: state.roomId
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
-                        tool: state.tool ?? 'dice',
-                        event: 'dice_roll',
-                        round: action.round,
-                        actor: action.by,
-                        result: String(action.total),
-                        scoreA: null,
-                        scoreB: null,
-                        timestamp: action.timestamp,
-                        details: `${action.count}d${action.sides} => [${action.values.join(',')}]`,
-                    }]
-                    : state.history,
+                history: [...state.history.slice(-(MAX_HISTORY - 1)), {
+                    roomId: state.roomId ?? LOCAL_ROOM_ID,
+                    tool: state.tool ?? 'dice',
+                    event: 'dice_roll',
+                    round: action.round,
+                    actor: action.by,
+                    result: String(action.total),
+                    scoreA: null,
+                    scoreB: null,
+                    timestamp: action.timestamp,
+                    details: `${action.count}d${action.sides} => [${action.values.join(',')}]`,
+                }],
             };
         case 'DICE_DUEL_RESULT':
             return {
@@ -451,20 +448,18 @@ function reducer(state: GameState, action: Action): GameState {
                     b: state.score.b + (action.winner === 'b' ? 1 : 0),
                 },
                 round: action.round + 1,
-                history: state.roomId
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
-                        tool: state.tool ?? 'dice',
-                        event: 'dice_duel',
-                        round: action.round,
-                        actor: 'a' as PlayerSlot,
-                        result: action.winner === 'draw' ? 'draw' : `${action.winner}_wins`,
-                        scoreA: state.score.a + (action.winner === 'a' ? 1 : 0),
-                        scoreB: state.score.b + (action.winner === 'b' ? 1 : 0),
-                        timestamp: action.timestamp,
-                        details: `A:${action.a.total} B:${action.b.total}`,
-                    }]
-                    : state.history,
+                history: [...state.history.slice(-(MAX_HISTORY - 1)), {
+                    roomId: state.roomId ?? LOCAL_ROOM_ID,
+                    tool: state.tool ?? 'dice',
+                    event: 'dice_duel',
+                    round: action.round,
+                    actor: 'a' as PlayerSlot,
+                    result: action.winner === 'draw' ? 'draw' : `${action.winner}_wins`,
+                    scoreA: state.score.a + (action.winner === 'a' ? 1 : 0),
+                    scoreB: state.score.b + (action.winner === 'b' ? 1 : 0),
+                    timestamp: action.timestamp,
+                    details: `A:${action.a.total} B:${action.b.total}`,
+                }],
             };
         case 'WHEEL_RESULT': {
             const selected = action.options[action.selectedIndex];
@@ -481,20 +476,18 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
-                history: state.roomId
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
-                        tool: state.tool ?? 'wheel',
-                        event: 'wheel_spin',
-                        round: action.round,
-                        actor: action.by,
-                        result: selected?.label ?? 'unknown',
-                        scoreA: null,
-                        scoreB: null,
-                        timestamp: action.timestamp,
-                        details: JSON.stringify(action.options),
-                    }]
-                    : state.history,
+                history: [...state.history.slice(-(MAX_HISTORY - 1)), {
+                    roomId: state.roomId ?? LOCAL_ROOM_ID,
+                    tool: state.tool ?? 'wheel',
+                    event: 'wheel_spin',
+                    round: action.round,
+                    actor: action.by,
+                    result: selected?.label ?? 'unknown',
+                    scoreA: null,
+                    scoreB: null,
+                    timestamp: action.timestamp,
+                    details: JSON.stringify(action.options),
+                }],
             };
         }
         case 'DRAW_RESULT':
@@ -521,20 +514,18 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
-                history: state.roomId
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
-                        tool: state.tool ?? 'draw',
-                        event: action.mode === 'pick' ? 'draw_pick' : 'draw_shuffle',
-                        round: action.round,
-                        actor: action.by,
-                        result: action.pickedName ?? 'shuffled',
-                        scoreA: null,
-                        scoreB: null,
-                        timestamp: action.timestamp,
-                        details: action.orderedNames.join('|'),
-                    }]
-                    : state.history,
+                history: [...state.history.slice(-(MAX_HISTORY - 1)), {
+                    roomId: state.roomId ?? LOCAL_ROOM_ID,
+                    tool: state.tool ?? 'draw',
+                    event: action.mode === 'pick' ? 'draw_pick' : 'draw_shuffle',
+                    round: action.round,
+                    actor: action.by,
+                    result: action.pickedName ?? 'shuffled',
+                    scoreA: null,
+                    scoreB: null,
+                    timestamp: action.timestamp,
+                    details: action.orderedNames.join('|'),
+                }],
             };
         case 'REACTION_STATE':
             return {
@@ -565,9 +556,10 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
-                history: state.roomId && action.phase !== state.reactionState?.phase
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
+                history: action.phase === state.reactionState?.phase
+                    ? state.history
+                    : [...state.history.slice(-(MAX_HISTORY - 1)), {
+                        roomId: state.roomId ?? LOCAL_ROOM_ID,
                         tool: state.tool ?? 'reaction',
                         event: 'reaction_state',
                         round: action.round,
@@ -577,8 +569,7 @@ function reducer(state: GameState, action: Action): GameState {
                         scoreB: null,
                         timestamp: action.timestamp,
                         details: `mode=${action.mode}; target=${action.targetCentis ?? 'na'}; ready=${action.readyBy.join('|') || 'none'}; countdownMs=${action.countdownMs ?? 'na'}`,
-                    }]
-                    : state.history,
+                    }],
             };
         case 'REACTION_RESULT':
             return {
@@ -609,20 +600,18 @@ function reducer(state: GameState, action: Action): GameState {
                 myChoiceSubmitted: false,
                 opponentReady: false,
                 round: action.round + 1,
-                history: state.roomId
-                    ? [...state.history.slice(-(MAX_HISTORY - 1)), {
-                        roomId: state.roomId,
-                        tool: state.tool ?? 'reaction',
-                        event: 'reaction_result',
-                        round: action.round,
-                        actor: action.by,
-                        result: action.winner,
-                        scoreA: null,
-                        scoreB: null,
-                        timestamp: action.timestamp,
-                        details: `mode=${action.mode}; target=${action.targetCentis ?? 'na'}; false_start=${action.falseStartBy ?? 'none'}; a=${action.reactionMs.a ?? 'na'}; b=${action.reactionMs.b ?? 'na'}; da=${action.deltaCentis.a ?? 'na'}; db=${action.deltaCentis.b ?? 'na'}`,
-                    }]
-                    : state.history,
+                history: [...state.history.slice(-(MAX_HISTORY - 1)), {
+                    roomId: state.roomId ?? LOCAL_ROOM_ID,
+                    tool: state.tool ?? 'reaction',
+                    event: 'reaction_result',
+                    round: action.round,
+                    actor: action.by,
+                    result: action.winner,
+                    scoreA: null,
+                    scoreB: null,
+                    timestamp: action.timestamp,
+                    details: `mode=${action.mode}; target=${action.targetCentis ?? 'na'}; false_start=${action.falseStartBy ?? 'none'}; a=${action.reactionMs.a ?? 'na'}; b=${action.reactionMs.b ?? 'na'}; da=${action.deltaCentis.a ?? 'na'}; db=${action.deltaCentis.b ?? 'na'}`,
+                }],
             };
         case 'CHAT':
             return { ...state, chat: [...state.chat.slice(-49), action.entry] };

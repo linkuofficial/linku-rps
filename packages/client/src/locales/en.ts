@@ -13,6 +13,7 @@ const dict: Dict = {
     'app.reconnecting': 'Reconnecting (attempt {n})',
     'app.disconnected': 'Connection lost',
     'app.reconnectNow': 'Reconnect now',
+    'app.localGame': 'Playing on this device',
 
     'error.invalid_json': 'Invalid message payload',
     'error.invalid_message_type': 'Unsupported message type',
@@ -64,6 +65,8 @@ const dict: Dict = {
     'lobby.joinCodePlaceholder': 'Enter room code',
     'lobby.joinCodeLength': 'Room code is {n} digits',
     'lobby.soloHint': 'Start a room immediately. Share the link to invite another player.',
+    'lobby.offlineSoloHint': 'Server unavailable — you can still play on your own.',
+    'lobby.offlineSoloShareHint': 'Start on your own. Inviting another player needs the server, which is unavailable right now.',
     'common.startNow': 'Start now',
 
     'waiting.waitingOpponent': 'Waiting for opponent...',

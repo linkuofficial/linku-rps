@@ -13,6 +13,7 @@ const dict: Dict = {
     'app.reconnecting': 'Переподключение (попытка {n})',
     'app.disconnected': 'Соединение потеряно',
     'app.reconnectNow': 'Переподключиться сейчас',
+    'app.localGame': 'Игра на этом устройстве',
 
     'error.invalid_json': 'Некорректный формат сообщения',
     'error.invalid_message_type': 'Неподдерживаемый тип сообщения',
@@ -64,6 +65,8 @@ const dict: Dict = {
     'lobby.joinCodePlaceholder': 'Введите код комнаты',
     'lobby.joinCodeLength': 'Код комнаты состоит из {n} цифр',
     'lobby.soloHint': 'Создайте комнату немедленно. Поделитесь ссылкой, чтобы пригласить другого игрока.',
+    'lobby.offlineSoloHint': 'Сервер недоступен — вы всё ещё можете играть в одиночку.',
+    'lobby.offlineSoloShareHint': 'Начните в одиночку. Для приглашения другого игрока нужен сервер, сейчас он недоступен.',
     'common.startNow': 'Начать сейчас',
 
     'waiting.waitingOpponent': 'Ожидание соперника...',

@@ -13,6 +13,7 @@ const dict: Dict = {
     'app.reconnecting': 'Reconectando (intento {n})',
     'app.disconnected': 'Conexion perdida',
     'app.reconnectNow': 'Reconectar ahora',
+    'app.localGame': 'Jugando en este dispositivo',
 
     'error.invalid_json': 'Carga de mensaje invalida',
     'error.invalid_message_type': 'Tipo de mensaje no soportado',
@@ -64,6 +65,8 @@ const dict: Dict = {
     'lobby.joinCodePlaceholder': 'Introduce el codigo de sala',
     'lobby.joinCodeLength': 'El codigo de sala tiene {n} digitos',
     'lobby.soloHint': 'Inicia una sala de inmediato. Comparte el enlace para invitar a otro jugador.',
+    'lobby.offlineSoloHint': 'Servidor no disponible: aún puedes jugar tú solo.',
+    'lobby.offlineSoloShareHint': 'Empieza tú solo. Invitar a otro jugador requiere el servidor, que no está disponible.',
     'common.startNow': 'Empezar ahora',
 
     'waiting.waitingOpponent': 'Esperando al oponente...',

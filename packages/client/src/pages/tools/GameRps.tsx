@@ -72,7 +72,7 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
 
             <button
                 onClick={exportCsv}
-                disabled={!state.roomId}
+                disabled={!state.history.length}
                 className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}

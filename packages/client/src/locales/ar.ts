@@ -13,6 +13,7 @@ const dict: Dict = {
 	'app.reconnecting': 'إعادة الاتصال (المحاولة {n})',
 	'app.disconnected': 'انقطع الاتصال',
 	'app.reconnectNow': 'إعادة الاتصال الآن',
+	'app.localGame': 'اللعب على هذا الجهاز',
 
 	'error.invalid_json': 'تنسيق الرسالة غير صالح',
 	'error.invalid_message_type': 'نوع الرسالة غير مدعوم',
@@ -64,6 +65,8 @@ const dict: Dict = {
 	'lobby.joinCodePlaceholder': 'أدخل رمز الغرفة',
 	'lobby.joinCodeLength': 'رمز الغرفة مكوّن من {n} أرقام',
 	'lobby.soloHint': 'ابدأ الغرفة فورًا. شارك الرابط لدعوة لاعب آخر.',
+	'lobby.offlineSoloHint': 'الخادم غير متاح — لا يزال بإمكانك اللعب بمفردك.',
+	'lobby.offlineSoloShareHint': 'ابدأ بمفردك. تتطلب دعوة لاعب آخر الخادم، وهو غير متاح حاليًا.',
 	'common.startNow': 'ابدأ الآن',
 
 	'waiting.waitingOpponent': 'بانتظار الخصم...',

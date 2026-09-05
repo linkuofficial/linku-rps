@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useWebSocket } from './hooks/useWebSocket';
+import { useSession } from './hooks/useSession';
 import { useGameState } from './hooks/useGameState';
 import { useDarkMode } from './hooks/useDarkMode';
 import LanguageSwitcherCompact from './components/LanguageSwitcherCompact';
@@ -14,7 +14,7 @@ import Game from './pages/Game';
 import Lobby from './pages/Lobby';
 import Waiting from './pages/Waiting';
 import Finished from './pages/Finished';
-import { isValidRoomCode } from '@rps/shared';
+import { isValidRoomCode, supportsSoloPlay } from '@rps/shared';
 
 import { RECONNECT_STORAGE_KEY } from './lib/storage-keys';
 
@@ -27,7 +27,7 @@ export default function App() {
   const { t } = useI18n();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { state, dispatch, handleMessage } = useGameState();
-  const { send, connected, connectionState, reconnectAttempt, reconnectNow } = useWebSocket(
+  const { send, connected, connectionState, reconnectAttempt, reconnectNow, isLocal, endLocalSession } = useSession(
     handleMessage,
     () => {
       const roomId = state.roomId;
@@ -126,16 +126,17 @@ export default function App() {
 
   return (
     <div className="fixed inset-0 bg-surface">
-      {connectionState !== 'connected' && (
+      {(isLocal || connectionState !== 'connected') && (
         <div className="pointer-events-none fixed bottom-3 left-3 right-3 z-40 sm:bottom-5 sm:left-5 sm:right-auto sm:w-[min(26rem,calc(100vw-2.5rem))]">
           <div
             className="pointer-events-auto border border-border bg-surface-alt/95 px-3 py-2 text-label-sm text-on-surface shadow-lg backdrop-blur-sm flex items-center justify-between gap-2"
             aria-live="polite"
           >
             <span className="truncate">
-              {connectionState === 'connecting' && t('app.connecting')}
-              {connectionState === 'reconnecting' && t('app.reconnecting', { n: reconnectAttempt })}
-              {connectionState === 'disconnected' && t('app.disconnected')}
+              {isLocal && t('app.localGame')}
+              {!isLocal && connectionState === 'connecting' && t('app.connecting')}
+              {!isLocal && connectionState === 'reconnecting' && t('app.reconnecting', { n: reconnectAttempt })}
+              {!isLocal && connectionState === 'disconnected' && t('app.disconnected')}
             </span>
             <button
               onClick={reconnectNow}
@@ -165,6 +166,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     localStorage.removeItem(RECONNECT_STORAGE_KEY);
+                    endLocalSession();
                     dispatch({ type: 'BACK_TO_TOOL_SELECT' });
                   }}
                   className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
@@ -191,6 +193,7 @@ export default function App() {
                 <Lobby
                   send={send}
                   connected={connected}
+                  offlineSoloAvailable={!connected && supportsSoloPlay(state.tool)}
                   error={state.error}
                   dispatch={dispatch}
                   tool={state.tool}

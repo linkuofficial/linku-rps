@@ -1,3 +1,7 @@
+// Tool outcome logic (RNG, sanitising, reaction timing) shared by the server and the
+// browser-local solo session.
+export * from './tools.js';
+
 // ===== Message Types =====
 
 export type Choice = 'rock' | 'paper' | 'scissors';

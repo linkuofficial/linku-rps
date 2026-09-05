@@ -13,6 +13,7 @@ const dict: Dict = {
     'app.reconnecting': '重新連線中（第 {n} 次）',
     'app.disconnected': '連線中斷',
     'app.reconnectNow': '立即重連',
+    'app.localGame': '在本機遊玩',
 
     'error.invalid_json': '訊息內容格式錯誤',
     'error.invalid_message_type': '不支援的訊息類型',
@@ -64,6 +65,8 @@ const dict: Dict = {
     'lobby.joinCodePlaceholder': '輸入房間代碼',
     'lobby.joinCodeLength': '房間代碼為 {n} 碼',
     'lobby.soloHint': '立即開始。分享連結可邀請其他玩家加入。',
+    'lobby.offlineSoloHint': '無法連線到伺服器 — 仍可單人使用。',
+    'lobby.offlineSoloShareHint': '單人開始。邀請其他玩家需要伺服器，目前無法連線。',
     'common.startNow': '立即開始',
 
     'waiting.waitingOpponent': '等待對手加入中...',
