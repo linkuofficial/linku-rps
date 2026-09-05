@@ -122,6 +122,14 @@ export default function App() {
     }
   }, [state.roomId, state.phase, state.pendingJoinCode]);
 
+  // Being back at the tool list always means no local game. More than one control lands
+  // here (the back arrow, and Finished's own button), so the invariant is enforced on the
+  // phase rather than on each caller: a local session left open would keep routing sends
+  // away from a socket that may since have come back.
+  useEffect(() => {
+    if (state.phase === 'tool_select') endLocalSession();
+  }, [state.phase, endLocalSession]);
+
   const isToolSelector = state.phase === 'tool_select';
 
   return (
@@ -166,7 +174,6 @@ export default function App() {
                 <button
                   onClick={() => {
                     localStorage.removeItem(RECONNECT_STORAGE_KEY);
-                    endLocalSession();
                     dispatch({ type: 'BACK_TO_TOOL_SELECT' });
                   }}
                   className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"

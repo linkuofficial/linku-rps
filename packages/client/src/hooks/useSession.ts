@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, ServerMessage } from '@rps/shared';
 import { useWebSocket } from './useWebSocket';
 import { LocalSession } from '../local/localSession';
@@ -72,6 +72,13 @@ export function useSession(onMessage: MessageHandler, getReconnectMessage?: Reco
     },
     [connected, socketSend, setSessionMode],
   );
+
+  // A local game owns real timers (the reaction countdown). Drop them with the hook so a
+  // round in flight cannot fire into an unmounted tree.
+  useEffect(() => {
+    const local = localRef.current;
+    return () => local?.close();
+  }, []);
 
   /** Tear down any local game — used when the player returns to the tool list. */
   const endLocalSession = useCallback(() => {
