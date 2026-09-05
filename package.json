@@ -13,8 +13,8 @@
     "format": "prettier --write \"**/*.{json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{json,md,yml,yaml}\"",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
-    "test:coverage": "pnpm -r --if-present test:coverage",
+    "test": "pnpm --filter @rps/shared build && pnpm -r --if-present test",
+    "test:coverage": "pnpm --filter @rps/shared build && pnpm -r --if-present test:coverage",
     "smoke:server": "pnpm --filter @rps/server build && node scripts/smoke-server.mjs"
   },
   "devDependencies": {
