@@ -27,11 +27,12 @@ async function waitForJson(path, timeoutMs = 15000) {
     throw new Error(`Timeout waiting for ${path}: ${lastError ? String(lastError) : 'unknown error'}`);
 }
 
-const startCommand = process.platform === 'win32'
-    ? ['cmd.exe', ['/d', '/s', '/c', 'pnpm --filter @rps/server start']]
-    : ['pnpm', ['--filter', '@rps/server', 'start']];
-
-const child = spawn(startCommand[0], startCommand[1], {
+// Start the built server directly instead of through "pnpm --filter @rps/server start".
+// Going through pnpm makes the real server a grandchild, so the SIGTERM below reaches only
+// the wrapper: the server keeps running, its stdio pipes stay open, and this script never
+// exits — which hangs CI for the whole job timeout. Spawning node on the built entrypoint is
+// also exactly what the Dockerfile runs in production.
+const child = spawn(process.execPath, ['packages/server/dist/server.js'], {
     cwd: process.cwd(),
     env: { ...process.env, PORT: String(port), NODE_ENV: 'production' },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -81,4 +82,6 @@ try {
 } finally {
     child.kill('SIGTERM');
     await wait(250);
+    // Belt and braces: never leave a runner waiting on a server that ignored the signal.
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
 }
