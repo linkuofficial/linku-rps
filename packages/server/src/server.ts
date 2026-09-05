@@ -22,10 +22,31 @@ import {
     type RoundResult,
     type ServerMessage,
     type ToolId,
-    type WheelOption,
     BEATS,
     VALID_CHOICES,
     createRoomCode,
+    isToolId,
+    normalizeBestOf,
+    DICE_DEFAULT_COUNT,
+    DICE_DEFAULT_SIDES,
+    TARGET_RESOLVE_TIMEOUT_MS,
+    WHEEL_MIN_OPTIONS,
+    diceTotal,
+    flipCoin,
+    isValidDiceCount,
+    isValidDiceSides,
+    normalizeReactionMode,
+    oppositeSlot,
+    pickIndex,
+    pickReactionTargetCentis,
+    reactionCountdownDelayMs,
+    resolveTargetOutcome,
+    rollDice,
+    runDraw,
+    sanitizeNames,
+    sanitizeWheelOptions,
+    supportsSoloPlay,
+    type DrawSession,
 } from '@rps/shared';
 
 export const app = express();
@@ -43,13 +64,6 @@ const RECONNECT_GRACE_MS = Number(process.env.RECONNECT_GRACE_MS) || 30000;
 const WS_HEARTBEAT_INTERVAL_MS = 25000;
 const WS_MAX_PAYLOAD_BYTES = 16 * 1024;
 const EXPORT_ADMIN_KEY = process.env.EXPORT_ADMIN_KEY?.trim() || null;
-const F1_LIGHT_STEP_MS = 1000;
-const F1_LIGHT_COUNT = 5;
-const F1_FULL_LIGHT_HOLD_MIN_MS = 200;
-const F1_FULL_LIGHT_HOLD_MAX_MS = 2000;
-const TARGET_COUNTDOWN_MIN_MS = 1200;
-const TARGET_COUNTDOWN_SPAN_MS = 2600;
-const TOOL_IDS: ToolId[] = ['rps', 'coin', 'dice', 'wheel', 'draw', 'reaction'];
 const PROCESS_STARTED_AT = Date.now();
 
 export const wss = new WebSocketServer({
@@ -101,7 +115,7 @@ interface Room {
         falseStartBy: PlayerSlot | null;
         timer: ReturnType<typeof setTimeout> | null;
     } | null;
-    drawSession: { sourceKey: string; remaining: string[] } | null;
+    drawSession: DrawSession | null;
     pendingDiceRoll: { slot: PlayerSlot; values: number[]; total: number; count: number; sides: number } | null;
     lastResultMsg: ServerMessage | null;
     history: RoomHistoryEvent[];
@@ -202,10 +216,6 @@ function getPhase(room: Room): 'waiting' | 'playing' | 'finished' {
     return 'playing';
 }
 
-function supportsSoloPlay(tool: ToolId): boolean {
-    return tool !== 'rps';
-}
-
 function isGameplayReady(room: Room | undefined): room is Room {
     if (!room || !room.a) return false;
     return supportsSoloPlay(room.tool) || !!room.b;
@@ -296,58 +306,6 @@ function logEvent(roomId: string, room: Room, partial: Omit<RoomHistoryEvent, 't
     });
 }
 
-function sanitizeWheelOptions(options: WheelOption[]): WheelOption[] {
-    return options
-        .slice(0, 24)
-        .map((opt, i) => ({
-            id: String(opt.id || `opt_${i + 1}`),
-            label: String(opt.label || '').trim().slice(0, 40),
-            color: /^#[0-9a-fA-F]{6}$/.test(String(opt.color || '')) ? String(opt.color) : '#64748b',
-            imageUrl:
-                /^https?:\/\//.test(String(opt.imageUrl || '')) && String(opt.imageUrl || '').length <= 512
-                    ? String(opt.imageUrl)
-                    : undefined,
-        }))
-        .filter((opt) => opt.label.length > 0);
-}
-
-function sanitizeNames(names: string[]): string[] {
-    const normalized = names
-        .slice(0, 200)
-        .map((name) => String(name || '').trim().slice(0, 40))
-        .filter((name) => name.length > 0);
-
-    const seen = new Set<string>();
-    const deduped: string[] = [];
-    for (const name of normalized) {
-        if (seen.has(name)) continue;
-        seen.add(name);
-        deduped.push(name);
-    }
-    return deduped;
-}
-
-function shuffled<T>(items: T[]): T[] {
-    const out = [...items];
-    for (let i = out.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [out[i], out[j]] = [out[j], out[i]];
-    }
-    return out;
-}
-
-function oppositeSlot(slot: PlayerSlot): PlayerSlot {
-    return slot === 'a' ? 'b' : 'a';
-}
-
-function normalizeReactionMode(value: unknown): ReactionMode {
-    return value === 'target' ? 'target' : 'f1';
-}
-
-function pickReactionTargetCentis(): number {
-    return 80 + Math.floor(Math.random() * 420);
-}
-
 function clearReactionTimer(room: Room) {
     if (!room.reactionSession?.timer) return;
     clearTimeout(room.reactionSession.timer);
@@ -399,43 +357,6 @@ function broadcastReactionState(roomId: string, room: Room, by: PlayerSlot | 'sy
         scoreB: room.score.b,
         details: `mode=${reaction.mode}; target=${reaction.targetCentis ?? 'na'}; ready=${readyBy.join('|') || 'none'}`,
     });
-}
-
-function resolveTargetWinner(
-    reaction: Room['reactionSession'],
-    roomHasOpponent: boolean,
-): { winner: PlayerSlot | 'draw'; deltaCentis: { a: number | null; b: number | null } } {
-    if (!reaction || !reaction.greenAt || reaction.targetCentis === null) {
-        return { winner: 'draw', deltaCentis: { a: null, b: null } };
-    }
-    const greenAt = reaction.greenAt;
-    const targetCentis = reaction.targetCentis;
-
-    const toDelta = (slot: PlayerSlot) => {
-        const pressedAt = reaction.presses[slot];
-        if (!pressedAt) return null;
-        const elapsedCentis = Math.round((pressedAt - greenAt) / 10);
-        return Math.abs(elapsedCentis - targetCentis);
-    };
-
-    const deltaCentis = { a: toDelta('a'), b: toDelta('b') };
-
-    if (!roomHasOpponent) {
-        return { winner: deltaCentis.a === null ? 'draw' : 'a', deltaCentis };
-    }
-    if (deltaCentis.a === null && deltaCentis.b === null) {
-        return { winner: 'draw', deltaCentis };
-    }
-    if (deltaCentis.a === null) {
-        return { winner: 'b', deltaCentis };
-    }
-    if (deltaCentis.b === null) {
-        return { winner: 'a', deltaCentis };
-    }
-    if (deltaCentis.a === deltaCentis.b) {
-        return { winner: 'draw', deltaCentis };
-    }
-    return { winner: deltaCentis.a < deltaCentis.b ? 'a' : 'b', deltaCentis };
 }
 
 function finalizeReactionRound(roomId: string, room: Room, by: PlayerSlot | 'system', winner: PlayerSlot | 'draw', falseStartBy: PlayerSlot | null) {
@@ -648,8 +569,8 @@ wss.on('connection', (ws) => {
                         if (!prevRoom.a && !prevRoom.b) scheduleCleanup(roomId, prevRoom);
                     }
                 }
-                const bestOf = [1, 3, 5, 7].includes(msg.bestOf) ? msg.bestOf : 3;
-                const tool = TOOL_IDS.includes(msg.tool) ? msg.tool : 'rps';
+                const bestOf = normalizeBestOf(msg.bestOf);
+                const tool = isToolId(msg.tool) ? msg.tool : 'rps';
                 const newRoomId = createRoomId(tool);
                 const reconnectToken = uuidv4();
                 rooms[newRoomId] = {
@@ -945,7 +866,7 @@ wss.on('connection', (ws) => {
                     return;
                 }
 
-                const result: CoinFace = Math.random() < 0.5 ? 'heads' : 'tails';
+                const result: CoinFace = flipCoin();
                 const coinMsg: ServerMessage = { type: 'coin_result', result, by: playerSlot, round: room.round, timestamp: Date.now() };
                 room.lastResultMsg = coinMsg;
                 broadcast(room, coinMsg);
@@ -977,19 +898,19 @@ wss.on('connection', (ws) => {
                     return;
                 }
 
-                const count = Number.isInteger(msg.count) ? msg.count : 1;
-                const sides = Number.isInteger(msg.sides) ? msg.sides : 6;
-                if (count < 1 || count > 20) {
+                const count = Number.isInteger(msg.count) ? msg.count : DICE_DEFAULT_COUNT;
+                const sides = Number.isInteger(msg.sides) ? msg.sides : DICE_DEFAULT_SIDES;
+                if (!isValidDiceCount(count)) {
                     invalidGameState('dice_count_out_of_range');
                     return;
                 }
-                if (sides < 2 || sides > 1000) {
+                if (!isValidDiceSides(sides)) {
                     invalidGameState('dice_sides_out_of_range');
                     return;
                 }
 
-                const values = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
-                const total = values.reduce((acc, n) => acc + n, 0);
+                const values = rollDice(count, sides);
+                const total = diceTotal(values);
 
                 // Solo mode: broadcast immediately
                 if (!room.b) {
@@ -1072,12 +993,12 @@ wss.on('connection', (ws) => {
                 }
 
                 const options = sanitizeWheelOptions(msg.options);
-                if (options.length < 2) {
+                if (options.length < WHEEL_MIN_OPTIONS) {
                     invalidGameState('wheel_requires_two_options');
                     return;
                 }
 
-                const selectedIndex = Math.floor(Math.random() * options.length);
+                const selectedIndex = pickIndex(options.length);
                 const wheelMsg: ServerMessage = { type: 'wheel_result', options, selectedIndex, by: playerSlot, round: room.round, timestamp: Date.now() };
                 room.lastResultMsg = wheelMsg;
                 broadcast(room, wheelMsg);
@@ -1118,35 +1039,9 @@ wss.on('connection', (ws) => {
                 const mode: DrawMode = msg.mode === 'shuffle' ? 'shuffle' : 'pick';
                 const noRepeat = msg.noRepeat === true;
                 const sourceNames = names;
-                let orderedNames = shuffled(names);
-                let pickedName: string | null = null;
-                let remainingNames: string[] = [];
-
-                if (mode === 'pick') {
-                    if (noRepeat) {
-                        const sourceKey = names.join('|');
-                        if (!room.drawSession || room.drawSession.sourceKey !== sourceKey || room.drawSession.remaining.length === 0) {
-                            room.drawSession = {
-                                sourceKey,
-                                remaining: [...names],
-                            };
-                        }
-
-                        const pool = room.drawSession.remaining;
-                        const pickIndex = Math.floor(Math.random() * pool.length);
-                        pickedName = pool[pickIndex] ?? null;
-                        if (pickedName) {
-                            pool.splice(pickIndex, 1);
-                        }
-                        remainingNames = [...pool];
-                        orderedNames = shuffled(remainingNames);
-                    } else {
-                        pickedName = orderedNames[0] ?? null;
-                        remainingNames = orderedNames.slice(1);
-                    }
-                } else {
-                    room.drawSession = null;
-                }
+                const drawn = runDraw({ names, mode, noRepeat, session: room.drawSession });
+                const { orderedNames, pickedName, remainingNames } = drawn;
+                room.drawSession = drawn.session;
 
                 const drawMsg: ServerMessage = { type: 'draw_result', mode, noRepeat, sourceNames, orderedNames, pickedName, remainingNames, by: playerSlot, round: room.round, timestamp: Date.now() };
                 room.lastResultMsg = drawMsg;
@@ -1201,9 +1096,7 @@ wss.on('connection', (ws) => {
 
                 if (reaction.ready.a && (room.b ? reaction.ready.b : true)) {
                     const reactionRoomId = roomId;
-                    const delay = reaction.mode === 'f1'
-                        ? F1_LIGHT_COUNT * F1_LIGHT_STEP_MS + F1_FULL_LIGHT_HOLD_MIN_MS + Math.floor(Math.random() * (F1_FULL_LIGHT_HOLD_MAX_MS - F1_FULL_LIGHT_HOLD_MIN_MS + 1))
-                        : TARGET_COUNTDOWN_MIN_MS + Math.floor(Math.random() * TARGET_COUNTDOWN_SPAN_MS);
+                    const delay = reactionCountdownDelayMs(reaction.mode);
                     reaction.phase = 'countdown';
                     reaction.targetCentis = reaction.mode === 'target' ? pickReactionTargetCentis() : null;
                     reaction.countdownMs = delay;
@@ -1228,9 +1121,14 @@ wss.on('connection', (ws) => {
                                 if (!latest || latest.tool !== 'reaction' || !latest.reactionSession) return;
                                 if (latest.reactionSession.phase !== 'green' || latest.reactionSession.mode !== 'target') return;
 
-                                const resolved = resolveTargetWinner(latest.reactionSession, !!latest.b);
+                                const resolved = resolveTargetOutcome({
+                                    greenAt: latest.reactionSession.greenAt,
+                                    targetCentis: latest.reactionSession.targetCentis,
+                                    presses: latest.reactionSession.presses,
+                                    hasOpponent: !!latest.b,
+                                });
                                 finalizeReactionRound(reactionRoomId, latest, 'system', resolved.winner, null);
-                            }, 7000);
+                            }, TARGET_RESOLVE_TIMEOUT_MS);
                         }
                     }, delay);
                 }
@@ -1279,7 +1177,12 @@ wss.on('connection', (ws) => {
 
                 if (reaction.mode === 'target') {
                     if (!room.b) {
-                        const resolved = resolveTargetWinner(reaction, false);
+                        const resolved = resolveTargetOutcome({
+                            greenAt: reaction.greenAt,
+                            targetCentis: reaction.targetCentis,
+                            presses: reaction.presses,
+                            hasOpponent: false,
+                        });
                         finalizeReactionRound(roomId, room, playerSlot, resolved.winner, null);
                         break;
                     }
@@ -1291,7 +1194,12 @@ wss.on('connection', (ws) => {
                         break;
                     }
 
-                    const resolved = resolveTargetWinner(reaction, true);
+                    const resolved = resolveTargetOutcome({
+                        greenAt: reaction.greenAt,
+                        targetCentis: reaction.targetCentis,
+                        presses: reaction.presses,
+                        hasOpponent: true,
+                    });
                     finalizeReactionRound(roomId, room, playerSlot, resolved.winner, null);
                     break;
                 }

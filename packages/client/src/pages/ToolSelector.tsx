@@ -143,7 +143,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
 
                     {!connected && (
                         <div className="mt-4 text-center text-label-sm text-on-surface-variant">
-                            {t('app.disconnected')}
+                            {t('lobby.offlineSoloHint')}
                         </div>
                     )}
 

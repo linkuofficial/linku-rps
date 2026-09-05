@@ -253,7 +253,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
 
             <button
                 onClick={exportCsv}
-                disabled={!state.roomId}
+                disabled={!state.history.length}
                 className="mb-4 w-full text-center text-label-sm text-on-surface-variant underline-offset-2 transition-colors hover:text-on-surface hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}

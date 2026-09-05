@@ -13,6 +13,7 @@ const dict: Dict = {
     'app.reconnecting': '再接続中（{n}回目）',
     'app.disconnected': '接続が切れました',
     'app.reconnectNow': '今すぐ再接続',
+    'app.localGame': 'この端末でプレイ中',
 
     'error.invalid_json': 'メッセージ形式が不正です',
     'error.invalid_message_type': '未対応のメッセージタイプです',
@@ -64,6 +65,8 @@ const dict: Dict = {
     'lobby.joinCodePlaceholder': 'ルームコードを入力',
     'lobby.joinCodeLength': 'ルームコードは{n}桁です',
     'lobby.soloHint': 'すぐに開始できます。リンクを共有して他のプレイヤーを招待できます。',
+    'lobby.offlineSoloHint': 'サーバーに接続できません — 一人でのプレイは可能です。',
+    'lobby.offlineSoloShareHint': '一人で開始します。他のプレイヤーを招待するにはサーバーが必要ですが、現在利用できません。',
     'common.startNow': '今すぐ始める',
 
     'waiting.waitingOpponent': '対戦相手を待っています...',

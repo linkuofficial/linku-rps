@@ -72,7 +72,7 @@ export default function Game({ state, send, dispatch }: Props) {
     }, [isChatSwipeEnabled, isRtl]);
 
     const exportCsvFallback = () => {
-        if (!state.history.length || !state.roomId) return;
+        if (!state.history.length) return;
         const headers = ['timestamp_iso', 'room_id', 'tool', 'event', 'round', 'actor', 'result', 'score_a', 'score_b', 'details'];
         const escape = (v: string | number | null) => {
             if (v === null || v === undefined) return '';
@@ -89,7 +89,7 @@ export default function Game({ state, send, dispatch }: Props) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${state.tool ?? 'tool'}-${state.roomId ?? 'room'}-history.csv`;
+        a.download = `${state.tool ?? 'tool'}-${state.roomId ?? 'local'}-history.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

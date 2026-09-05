@@ -5,6 +5,10 @@ type MessageHandler = (msg: ServerMessage) => void;
 type ReconnectMessageFactory = () => ClientMessage | null;
 type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
+const FAST_RETRY_ATTEMPTS = 6;
+const FAST_RETRY_CEILING_MS = 8000;
+const SLOW_RETRY_CEILING_MS = 60000;
+
 function resolveSocketUrl(): string {
   const wsUrl = import.meta.env.VITE_WS_URL as string | undefined;
   if (!wsUrl) return 'ws://localhost:3001';
@@ -89,7 +93,10 @@ export function useWebSocket(onMessage: MessageHandler, getReconnectMessage?: Re
       reconnectAttemptsRef.current = nextAttempt;
       setReconnectAttempt(nextAttempt);
 
-      const delay = Math.min(1000 * 2 ** (nextAttempt - 1), 8000);
+      // Back off much further once the first burst of retries has failed: a backend that
+      // is gone stays gone, and polling it every 8s for the life of the tab is pure waste.
+      const ceiling = nextAttempt <= FAST_RETRY_ATTEMPTS ? FAST_RETRY_CEILING_MS : SLOW_RETRY_CEILING_MS;
+      const delay = Math.min(1000 * 2 ** (nextAttempt - 1), ceiling);
       clearReconnectTimer();
       reconnectTimerRef.current = setTimeout(() => connect(), delay);
     };

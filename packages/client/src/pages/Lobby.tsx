@@ -14,11 +14,17 @@ interface Props {
   error: { code: string; message: string } | null;
   dispatch: React.Dispatch<GameAction>;
   tool: ToolId;
+  /**
+   * True when there is no server but this tool can still be played alone in the browser.
+   * Keeps the start button live instead of leaving a dead control on a dead backend.
+   */
+  offlineSoloAvailable?: boolean;
 }
 
-export default function Lobby({ send, connected, error, dispatch, tool }: Props) {
+export default function Lobby({ send, connected, error, dispatch, tool, offlineSoloAvailable = false }: Props) {
   const { t, toolName, toolSubtitle, translateError, locale } = useI18n();
   const isRtl = locale === 'ar';
+  const canAct = connected || offlineSoloAvailable;
   const [joinCode, setJoinCode] = useState('');
   const [bestOf, setBestOf] = useState(3);
   const [sending, setSending] = useState(false);
@@ -81,7 +87,7 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
   };
 
   const retryLastAction = () => {
-    if (!connected || !lastAction || sending) return;
+    if (!canAct || !lastAction || sending) return;
     if (lastAction === 'join' && !joinCode.trim()) return;
     runAction(lastAction);
   };
@@ -94,7 +100,11 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
           <p className="text-label-md text-on-surface-variant mt-1">{toolSubtitle(tool)}</p>
         </div>
 
-        {!connected && <div className="text-center text-label-sm text-on-surface-variant mb-4">{t('app.connecting')}</div>}
+        {!connected && (
+          <div className="text-center text-label-sm text-on-surface-variant mb-4">
+            {offlineSoloAvailable ? t('lobby.offlineSoloHint') : t('app.connecting')}
+          </div>
+        )}
 
         {error && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
@@ -109,7 +119,7 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
             <p>{translateError('connection_timeout', 'Connection timed out. Please try again.')}</p>
             <button
               onClick={retryLastAction}
-              disabled={!connected}
+              disabled={!canAct}
               className="mt-2 px-3 py-1 border border-primary text-on-surface hover:bg-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {t('app.reconnectNow')}
@@ -118,8 +128,10 @@ export default function Lobby({ send, connected, error, dispatch, tool }: Props)
         )}
 
         <div className="bg-surface-alt border border-border p-6">
-          <p className="text-label-md text-on-surface-variant mb-4">{t('lobby.soloHint')}</p>
-          <button onClick={startNow} disabled={!connected || sending}
+          <p className="text-label-md text-on-surface-variant mb-4">
+            {offlineSoloAvailable ? t('lobby.offlineSoloShareHint') : t('lobby.soloHint')}
+          </p>
+          <button onClick={startNow} disabled={!canAct || sending}
             className="w-full py-3 bg-primary text-on-primary font-medium hover:bg-primary-container active:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {sending ? t('toolSelector.joining') : t('common.startNow')}</button>
         </div>

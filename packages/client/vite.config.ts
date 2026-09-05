@@ -20,7 +20,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/hooks/useGameState.ts'],
+      include: ['src/hooks/useGameState.ts', 'src/local/localSession.ts'],
       thresholds: {
         lines: 25,
         functions: 30,
