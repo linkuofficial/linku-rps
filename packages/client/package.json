@@ -1,34 +1,34 @@
 {
-    "name": "@rps/client",
-    "version": "1.0.0",
-    "private": true,
-    "type": "module",
-    "scripts": {
-        "dev": "vite",
-        "build": "pnpm --filter @rps/shared build && vite build",
-        "preview": "vite preview",
-        "lint": "eslint \"src/**/*.{ts,tsx}\"",
-        "typecheck": "tsc --noEmit",
-        "test": "vitest run",
-        "test:coverage": "vitest run --coverage"
-    },
-    "dependencies": {
-        "@fontsource-variable/geist": "^5.2.9",
-        "@rps/shared": "workspace:*",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-        "wouter": "^3.10.0"
-    },
-    "devDependencies": {
-        "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0",
-        "@vitejs/plugin-react": "^4.3.0",
-        "@vitest/coverage-v8": "^3.2.4",
-        "autoprefixer": "^10.4.20",
-        "postcss": "^8.4.49",
-        "tailwindcss": "^3.4.17",
-        "typescript": "^5.6.0",
-        "vite": "^6.0.0",
-        "vitest": "^3.2.4"
-    }
+  "name": "@rps/client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm --filter @rps/shared build && vite build",
+    "preview": "vite preview",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.2.9",
+    "@rps/shared": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "wouter": "^3.10.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.2.4"
+  }
 }
