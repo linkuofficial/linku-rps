@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from '../../lib/motion-lite';
 import { motion } from '../../lib/motion-lite';
-import EmojiBar from '../../components/EmojiBar';
-import Chat from '../../components/Chat';
+import ToolSocial from './ToolSocial';
 import Icon from '../../components/Icon';
 import { useI18n } from '../../i18n';
-import type { WheelOption } from '@rps/shared';
+import { sanitizeWheelOptions, WHEEL_MAX_OPTIONS, WHEEL_MAX_LABEL_LENGTH, WHEEL_MAX_IMAGE_URL_LENGTH, type WheelOption } from '@rps/shared';
 import type { GameToolProps } from './types';
 
 const WHEEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -34,17 +33,21 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
     const [isEditingWheel, setIsEditingWheel] = useState(false);
     const [wheelImageInputsOpen, setWheelImageInputsOpen] = useState<Record<string, boolean>>({});
 
+    const editorRef = useRef<HTMLDialogElement>(null);
+    const hiddenModeRef = useRef(wheelHiddenMode);
+    hiddenModeRef.current = wheelHiddenMode;
     const wheelResultTimestampRef = useRef<number | null>(null);
     const wheelSpinFallbackTimerRef = useRef<number | null>(null);
     const defaultWheelLabelsRef = useRef(defaultWheelLabels);
 
     const spinWheel = () => {
-        send({ type: 'wheel_spin', options: wheelOptions.filter((opt) => opt.label.trim()) });
+        send({ type: 'wheel_spin', options: sanitizeWheelOptions(wheelOptions) });
     };
 
     const handleWheelSpin = () => {
         const validOptions = wheelOptions.filter((opt) => opt.label.trim());
-        if (validOptions.length < 2) return;
+        if (validOptions.length < 2 || wheelSpinInFlight) return;
+        setWheelRevealed(false);
         if (wheelSpinFallbackTimerRef.current) window.clearTimeout(wheelSpinFallbackTimerRef.current);
         setWheelSpinInFlight(true);
         setWheelDiscDurationMs(1400);
@@ -60,12 +63,13 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
 
     const addWheelOption = () => {
         setWheelOptions((current) => {
+            if (current.length >= WHEEL_MAX_OPTIONS) return current;
             const nextIndex = current.length;
             return [
                 ...current,
                 {
                     id: String(Date.now() + nextIndex),
-                    label: `Option ${String.fromCharCode(65 + (nextIndex % 26))}`,
+                    label: `${t('wheel.optionPlaceholder')} ${nextIndex + 1}`,
                     color: WHEEL_COLORS[nextIndex % WHEEL_COLORS.length],
                 },
             ];
@@ -103,8 +107,8 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
             wheelSpinFallbackTimerRef.current = null;
         }
         wheelResultTimestampRef.current = ts;
-        setWheelRevealed(!wheelHiddenMode);
-        setWheelSpinInFlight(false);
+        setWheelRevealed(!hiddenModeRef.current);
+        setWheelSpinInFlight(true);
         setWheelSpinPulseKey((c) => c + 1);
         const result = state.wheelResult;
         if (result && result.options.length > 0) {
@@ -117,11 +121,12 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                 return prev + 720 + delta;
             });
         }
-        if (wheelHiddenMode) {
-            const timer = setTimeout(() => setWheelRevealed(true), 850);
-            return () => clearTimeout(timer);
-        }
-    }, [state.wheelResult, state.wheelResult?.timestamp, wheelHiddenMode]);
+        wheelSpinFallbackTimerRef.current = window.setTimeout(() => {
+            setWheelRevealed(true);
+            setWheelSpinInFlight(false);
+            wheelSpinFallbackTimerRef.current = null;
+        }, 850);
+    }, [state.wheelResult]);
 
     // Cleanup wheel fallback timer on unmount
     useEffect(() => {
@@ -138,14 +143,10 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
         }
     }, [state.wheelResult?.timestamp, vibrationEnabled]);
 
-    // Escape to close editor
+    // Native modal semantics provide focus containment, Escape and focus restoration.
     useEffect(() => {
-        if (!isEditingWheel) return;
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setIsEditingWheel(false);
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
+        if (isEditingWheel && !editorRef.current?.open) editorRef.current?.showModal();
+        if (!isEditingWheel && editorRef.current?.open) editorRef.current?.close();
     }, [isEditingWheel]);
 
     // Prevent body scroll when editor is open
@@ -185,8 +186,17 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
     const selected = state.wheelResult?.options[state.wheelResult.selectedIndex];
     const showLabel = !wheelHiddenMode || wheelRevealed;
     const hasEnoughWheelOptions = wheelOptions.filter((opt) => opt.label.trim()).length >= 2;
-    const wheelVisibleOptions = wheelOptions.filter((opt) => opt.label.trim());
-    const wheelVisualOptions = (wheelVisibleOptions.length ? wheelVisibleOptions : wheelOptions).slice(0, 24);
+    const currentVisualOptions = sanitizeWheelOptions(wheelOptions);
+    const resultMatchesCurrentOptions = state.wheelResult?.options.length === currentVisualOptions.length
+        && state.wheelResult.options.every((option, index) => {
+            const current = currentVisualOptions[index];
+            return current
+                && option.id === current.id
+                && option.label === current.label
+                && option.color === current.color
+                && option.imageUrl === current.imageUrl;
+        });
+    const wheelVisualOptions = resultMatchesCurrentOptions ? state.wheelResult!.options : currentVisualOptions;
     const wheelGradient = wheelVisualOptions.length
         ? `conic-gradient(${wheelVisualOptions
             .map((opt, index) => {
@@ -202,6 +212,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
     return (
         <>
             <div
+                role="status" aria-live="polite" aria-atomic="true"
                 key={`wheel-result-${state.wheelResult?.timestamp ?? 'idle'}`}
                 className={`tool-result-panel mb-4 border border-border p-5 text-center ${state.wheelResult ? 'tool-result-panel--reveal' : ''}`}
             >
@@ -217,7 +228,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                 </motion.div>
             </div>
 
-            <div className="mb-6 flex justify-center">
+            <div className="wheel-stage mb-6 flex justify-center">
                 <div className={`wheel-visual ${wheelSpinInFlight ? 'wheel-visual--spinning' : ''}`} aria-hidden="true">
                     <div
                         className="wheel-visual-disc"
@@ -234,17 +245,24 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                 </div>
             </div>
 
+            <ol className="wheel-legend mb-4 grid grid-cols-2 gap-2 text-label-sm" aria-label={t('wheel.options')}>
+                {wheelVisualOptions.map((option) => <li key={option.id} className="flex min-w-0 items-center gap-2">
+                    <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full border border-border" style={{ backgroundColor: option.color }} />
+                    <span className="break-words">{option.label}</span>
+                </li>)}
+            </ol>
+
             <button
-                onClick={() => setIsEditingWheel(true)}
-                className="mb-4 w-full border border-primary bg-surface-container-lowest px-4 py-3 text-label-md font-medium text-on-surface transition-colors hover:bg-surface-alt"
+                onClick={() => setIsEditingWheel(true)} disabled={wheelSpinInFlight}
+                className="tool-config-action mb-4 w-full border border-primary bg-surface-container-lowest px-4 py-3 text-label-md font-medium text-on-surface transition-colors hover:bg-surface-alt"
             >
                 {'\u2699\uFE0F '}{t('wheel.editOptions')}
             </button>
 
             <button
                 onClick={handleWheelSpin}
-                disabled={!hasEnoughWheelOptions}
-                className="mb-4 w-full bg-primary px-4 py-5 text-lg font-semibold text-on-primary transition-colors hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!hasEnoughWheelOptions || wheelSpinInFlight}
+                className="tool-primary-action mb-4 w-full bg-primary px-4 py-5 text-lg font-semibold text-on-primary transition-colors hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 <span key={wheelSpinPulseKey} className="wheel-spin-label">
                     {t('wheel.spin')}
@@ -254,53 +272,28 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
             <button
                 onClick={exportCsv}
                 disabled={!state.history.length}
-                className="mb-4 w-full text-center text-label-sm text-on-surface-variant underline-offset-2 transition-colors hover:text-on-surface hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+                className="tool-export mb-4 w-full text-center text-label-sm text-on-surface-variant underline-offset-2 transition-colors hover:text-on-surface hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>
 
-            <EmojiBar onEmoji={sendEmoji} />
-
-            <button
-                onClick={() => setShowChat(!showChat)}
-                className="w-full py-2 text-label-sm text-on-surface-variant hover:text-on-surface hover:underline transition-colors mt-2"
-            >
-                {showChat ? t('common.hideChat') : `\uD83D\uDCAC ${t('common.chat')}${state.chat.length > 0 ? ` (${state.chat.length})` : ''}`}
-            </button>
-
-            <AnimatePresence>
-                {showChat && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <Chat messages={state.chat} mySlot={state.mySlot!} onSend={sendChat} />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ToolSocial {...{ state, sendEmoji, sendChat, showChat, setShowChat }} />
 
             {/* Wheel editor modal */}
-            <AnimatePresence>
-                {isEditingWheel && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-40 flex items-center justify-center p-4"
-                        onClick={closeWheelEditor}
-                    >
-                        <div className="absolute inset-0 bg-black/35 backdrop-blur-[1px]" />
+            <dialog
+                ref={editorRef}
+                aria-labelledby="wheel-edit-title"
+                onCancel={closeWheelEditor}
+                onClose={closeWheelEditor}
+                onClick={(event) => { if (event.target === event.currentTarget) closeWheelEditor(); }}
+                className="wheel-editor-dialog m-auto w-[calc(100%-2rem)] max-w-2xl bg-surface-container-lowest p-0 text-on-surface"
+            >
                         <motion.div
                             initial={{ opacity: 0, y: 16, scale: 0.98 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 12, scale: 0.98 }}
                             transition={{ duration: 0.2 }}
                             onClick={(e) => e.stopPropagation()}
-                            role="dialog"
-                            aria-modal="true"
-                            aria-labelledby="wheel-edit-title"
                             className="relative z-10 w-full max-w-2xl border border-border bg-surface-container-lowest shadow-[0_16px_56px_rgba(0,0,0,0.22)]"
                         >
                             <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -315,7 +308,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                     aria-label={t('wheel.closeEditor')}
                                     className="h-9 w-9 border border-border text-xl leading-none text-on-surface-variant transition-colors hover:border-on-surface hover:text-on-surface"
                                 >
-                                    \u00D7
+                                    {'\u00D7'}
                                 </button>
                             </div>
 
@@ -327,13 +320,13 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                             <div key={opt.id} className="border border-border bg-surface-alt/40 p-2">
                                                 <div className="flex items-center gap-2">
                                                     <input
-                                                        type="color"
+                                                        type="color" aria-label={`${t('wheel.color')}: ${opt.label}`}
                                                         value={opt.color}
                                                         onChange={(e) => updateWheelOption(opt.id, { color: e.target.value })}
                                                         className="h-9 w-11 shrink-0 border border-border bg-transparent"
                                                     />
                                                     <input
-                                                        type="text"
+                                                        type="text" aria-label={t('wheel.optionPlaceholder')} maxLength={WHEEL_MAX_LABEL_LENGTH}
                                                         value={opt.label}
                                                         onChange={(e) => updateWheelOption(opt.id, { label: e.target.value })}
                                                         className="min-w-0 flex-1 border border-border bg-surface-container-lowest px-3 py-2 text-on-surface text-sm focus:outline-none focus:border-on-surface transition-colors"
@@ -365,7 +358,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                                             className="pt-2"
                                                         >
                                                             <input
-                                                                type="url"
+                                                                type="url" aria-label={t('wheel.imagePlaceholder')} maxLength={WHEEL_MAX_IMAGE_URL_LENGTH}
                                                                 value={opt.imageUrl ?? ''}
                                                                 onChange={(e) => updateWheelOption(opt.id, { imageUrl: e.target.value })}
                                                                 className="w-full border border-border bg-surface-container-lowest px-3 py-2 text-on-surface text-sm focus:outline-none focus:border-on-surface transition-colors"
@@ -379,8 +372,9 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                     })}
                                 </div>
 
+                                <p role="status" className="mt-3 text-label-sm text-on-surface-variant">{t('wheel.inputHint', { n: wheelOptions.length, max: WHEEL_MAX_OPTIONS })}</p>
                                 <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <button onClick={addWheelOption} className="w-full border border-primary py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-alt">
+                                    <button onClick={addWheelOption} disabled={wheelOptions.length >= WHEEL_MAX_OPTIONS} className="w-full border border-primary py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-alt">
                                         {t('wheel.addOption')}
                                     </button>
                                     <button onClick={shuffleWheelOptions} className="w-full border border-primary py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-alt">
@@ -399,7 +393,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                                 checked={wheelHiddenMode}
                                                 onChange={(e) => {
                                                     setWheelHiddenMode(e.target.checked);
-                                                    setWheelRevealed(!e.target.checked);
+                                                    setWheelRevealed(true);
                                                 }}
                                             />
                                             {t('wheel.hiddenMode')}
@@ -416,9 +410,7 @@ export default function GameWheel({ state, send, exportCsv, sendEmoji, sendChat,
                                 </div>
                             </div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            </dialog>
         </>
     );
 }

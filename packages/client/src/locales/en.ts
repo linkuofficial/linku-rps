@@ -212,6 +212,18 @@ const dict: Dict = {
 
     'darkMode.enable': 'Enable dark mode',
     'darkMode.disable': 'Disable dark mode',
+    'dice.inputHint': "Use whole numbers: 1–20 dice, 2–1000 sides.",
+    'draw.inputHint': "{n} unique entries · maximum {max} names, {length} characters each. Blank lines and duplicates are ignored.",
+    'draw.inputTooLong': "Shorten the list or names to continue.",
+    'coin.history': "Recent flips (up to 300 counted; newest 10 shown)",
+    'reaction.tryAgain': "Try again",
+    'wheel.color': "Color",
+    'wheel.inputHint': "{n}/{max} options · at least two non-empty labels required.",
+    'reaction.soloHint': "Choose a mode, then get ready to start.",
+    'ui.title': "Everyday tools.",
+    'ui.subtitle': "Roll, draw, decide. Keep it simple.",
+    'ui.join': "Have a room code?",
+    'ui.about': "About this site",
 };
 
 export default dict;

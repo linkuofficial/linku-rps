@@ -212,6 +212,18 @@ const dict: Dict = {
 
 	'darkMode.enable': 'تفعيل الوضع المظلم',
 	'darkMode.disable': 'تعطيل الوضع المظلم',
+    'dice.inputHint': "أدخل أعدادًا صحيحة: 1–20 نردًا، و2–1000 وجه لكل نرد.",
+    'draw.inputHint': "{n} أسماء فريدة · الحد الأقصى {max} اسمًا، كل منها {length} حرفًا. يتم تجاهل الأسطر الفارغة والأسماء المكررة.",
+    'draw.inputTooLong': "قصّر القائمة أو الأسماء للمتابعة.",
+    'coin.history': "الرميات الأخيرة (إحصاء آخر 300 وعرض آخر 10)",
+    'reaction.tryAgain': "حاول مجددًا",
+    'wheel.color': "اللون",
+    'wheel.inputHint': "{n}/{max} خيارات · يلزم خياران غير فارغين على الأقل.",
+    'reaction.soloHint': "اختر وضعًا، ثم استعد للبدء.",
+    'ui.title': "أدوات لكل يوم",
+    'ui.subtitle': "ارمِ، اسحب، قرّر. بكل بساطة.",
+    'ui.join': "هل لديك رمز غرفة؟",
+    'ui.about': "عن الموقع",
 };
 
 export default dict;

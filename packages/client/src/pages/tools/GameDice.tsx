@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence } from '../../lib/motion-lite';
-import { motion } from '../../lib/motion-lite';
-import EmojiBar from '../../components/EmojiBar';
-import Chat from '../../components/Chat';
+import ToolSocial from './ToolSocial';
 import Icon from '../../components/Icon';
 import { useI18n } from '../../i18n';
+import { validIntegerInput } from './inputValidation';
+import { DICE_MIN_COUNT, DICE_MAX_COUNT, DICE_MIN_SIDES, DICE_MAX_SIDES } from '@rps/shared';
 import type { GameToolProps } from './types';
 
 const DICE_FACE_MAP: Record<number, string> = {
@@ -14,8 +13,13 @@ const DICE_FACE_MAP: Record<number, string> = {
 export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, showChat, setShowChat }: GameToolProps) {
     const { t, whoLabel } = useI18n();
 
-    const [diceCount, setDiceCount] = useState(2);
-    const [diceSides, setDiceSides] = useState(6);
+    const [diceCountInput, setDiceCount] = useState('2');
+    const [diceSidesInput, setDiceSides] = useState('6');
+    const diceCount = Number(diceCountInput);
+    const diceSides = Number(diceSidesInput);
+    const countValid = validIntegerInput(diceCountInput, DICE_MIN_COUNT, DICE_MAX_COUNT);
+    const sidesValid = validIntegerInput(diceSidesInput, DICE_MIN_SIDES, DICE_MAX_SIDES);
+    const canRoll = countValid && sidesValid;
     const [diceRolling, setDiceRolling] = useState(false);
     const [dicePulseKey, setDicePulseKey] = useState(0);
     const [dicePreviewValues, setDicePreviewValues] = useState<number[]>([1, 2]);
@@ -24,6 +28,7 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
     const diceRollFallbackTimerRef = useRef<number | null>(null);
 
     const rollDice = () => {
+        if (!canRoll || diceRolling) return;
         if (diceRollFallbackTimerRef.current) window.clearTimeout(diceRollFallbackTimerRef.current);
         setDiceRolling(true);
         setDicePulseKey((c) => c + 1);
@@ -155,6 +160,7 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
             {!duel && (
                 <div
                     key={dicePulseKey}
+                    role="status" aria-live="polite" aria-atomic="true"
                     className={`tool-result-panel dice-result-panel mb-4 border border-primary px-4 py-5 text-center sm:px-6 ${diceRolling ? 'dice-result-panel--rolling' : state.diceResult ? 'dice-result-panel--settled' : ''}`}
                 >
                     <div className="mb-1 text-label-sm text-on-surface-variant">{t('dice.rollRound', { round: Math.max(1, state.round - 1) })}</div>
@@ -167,7 +173,7 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
                     <div className="mb-3 text-label-md text-on-surface-variant">
                         {diceRolling ? `${t('dice.roll')}...` : state.diceResult ? diceRollMeta : t('dice.notYet')}
                     </div>
-                    <div className="mx-auto mb-3 grid max-w-sm grid-cols-3 gap-2 sm:max-w-md sm:grid-cols-6">
+                    <div className="dice-values-grid mx-auto mb-3 grid max-w-sm grid-cols-3 gap-2 sm:max-w-md sm:grid-cols-6">
                         {diceVisualValues.map((value, index) => renderDiceCell(value, index))}
                     </div>
                     {state.diceResult && (
@@ -178,7 +184,7 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
                 </div>
             )}
 
-            <div className="mb-4">
+            <div className="tool-settings mb-4">
                 <button
                     onClick={() => setDiceControlsOpen((o) => !o)}
                     aria-expanded={diceControlsOpen}
@@ -189,66 +195,48 @@ export default function GameDice({ state, send, exportCsv, sendEmoji, sendChat, 
                     <Icon name="arrow_back" className={`dice-controls-caret text-[14px] ${diceControlsOpen ? 'dice-controls-caret--open' : ''}`} />
                 </button>
 
-                <div className={`dice-controls-shell ${diceControlsOpen ? 'dice-controls-shell--open' : ''}`}>
+                <div inert={!diceControlsOpen} aria-hidden={!diceControlsOpen} className={`dice-controls-shell ${diceControlsOpen ? 'dice-controls-shell--open' : ''}`}>
                     <div className="dice-controls-panel border border-border bg-surface-container-lowest/90 p-3 sm:p-3.5">
                         <div className="mb-2 grid grid-cols-2 gap-2">
                             <label className="text-label-sm text-on-surface-variant">
                                 {t('dice.count')}
                                 <input
-                                    type="number" min={1} max={20} value={diceCount}
-                                    onChange={(e) => setDiceCount(Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
+                                    type="number" min={DICE_MIN_COUNT} max={DICE_MAX_COUNT} step={1} value={diceCountInput} aria-invalid={!countValid} aria-describedby="dice-input-hint"
+                                    onChange={(e) => setDiceCount(e.target.value)}
                                     className="mt-1 w-full border border-border bg-surface-container-lowest text-on-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-on-surface transition-colors"
                                 />
                             </label>
                             <label className="text-label-sm text-on-surface-variant">
                                 {t('dice.sides')}
                                 <input
-                                    type="number" min={2} max={1000} value={diceSides}
-                                    onChange={(e) => setDiceSides(Math.min(1000, Math.max(2, Number(e.target.value) || 6)))}
+                                    type="number" min={DICE_MIN_SIDES} max={DICE_MAX_SIDES} step={1} value={diceSidesInput} aria-invalid={!sidesValid} aria-describedby="dice-input-hint"
+                                    onChange={(e) => setDiceSides(e.target.value)}
                                     className="mt-1 w-full border border-border bg-surface-container-lowest text-on-surface px-2.5 py-1.5 text-sm focus:outline-none focus:border-on-surface transition-colors"
                                 />
                             </label>
                         </div>
+                        <p id="dice-input-hint" className="mb-2 text-label-sm text-on-surface-variant">{t('dice.inputHint')}</p>
                         <div className="mb-2.5 flex gap-1.5">
-                            <button onClick={() => setDiceSides(6)} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-on-surface">D6</button>
-                            <button onClick={() => setDiceSides(20)} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-on-surface">D20</button>
+                            <button onClick={() => setDiceSides('6')} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-on-surface">D6</button>
+                            <button onClick={() => setDiceSides('20')} className="border border-border bg-surface-alt px-2.5 py-1 text-label-sm transition-colors hover:border-on-surface">D20</button>
                         </div>
-                        <button onClick={rollDice} className="w-full bg-primary py-2.5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-container">
-                            {t('dice.roll')}
-                        </button>
                     </div>
                 </div>
             </div>
 
+            <button onClick={rollDice} disabled={!canRoll || diceRolling} className="tool-primary-action mb-4 min-h-11 w-full bg-primary py-3 font-medium text-on-primary transition-colors hover:bg-primary-container">
+                {t('dice.roll')}
+            </button>
+
             <button
                 onClick={exportCsv}
                 disabled={!state.history.length}
-                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="tool-export w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>
 
-            <EmojiBar onEmoji={sendEmoji} />
-
-            <button
-                onClick={() => setShowChat(!showChat)}
-                className="w-full py-2 text-label-sm text-on-surface-variant hover:text-on-surface hover:underline transition-colors mt-2"
-            >
-                {showChat ? t('common.hideChat') : `\uD83D\uDCAC ${t('common.chat')}${state.chat.length > 0 ? ` (${state.chat.length})` : ''}`}
-            </button>
-
-            <AnimatePresence>
-                {showChat && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <Chat messages={state.chat} mySlot={state.mySlot!} onSend={sendChat} />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ToolSocial {...{ state, sendEmoji, sendChat, showChat, setShowChat }} />
         </>
     );
 }

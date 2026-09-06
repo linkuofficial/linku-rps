@@ -1,0 +1,4 @@
+/* Preserve the approved desktop home composition. Tool interiors live in tool-pages.css. */
+@media (min-width: 900px) {
+  .app-shell { position: fixed; inset: 0; background: rgb(var(--color-surface)); }
+}

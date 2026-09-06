@@ -1,7 +1,6 @@
 import { AnimatePresence } from '../../lib/motion-lite';
 import { motion } from '../../lib/motion-lite';
-import EmojiBar from '../../components/EmojiBar';
-import Chat from '../../components/Chat';
+import ToolSocial from './ToolSocial';
 import ScoreBoard from '../../components/ScoreBoard';
 import Arena from '../../components/Arena';
 import ChoiceButton from '../../components/ChoiceButton';
@@ -19,7 +18,7 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
     const { t, choiceLabel } = useI18n();
 
     const choose = (choice: Choice) => {
-        if (state.myChoiceSubmitted) return;
+        if (state.myChoiceSubmitted || state.lastResult) return;
         dispatch({ type: 'CHOICE_MADE', choice });
         send({ type: 'choice', choice });
     };
@@ -41,6 +40,7 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
+                        role="status" aria-live="polite"
                         className={`text-center py-3 mb-4 font-semibold text-lg border ${iWon ? 'border-primary bg-surface-alt text-on-surface' : isDraw ? 'border-border bg-surface-alt text-on-surface-variant' : 'border-primary bg-surface-container-lowest text-on-surface'}`}
                     >
                         {iWon ? t('rps.result.win') : isDraw ? t('rps.result.draw') : t('rps.result.lose')}
@@ -49,7 +49,7 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
             </AnimatePresence>
 
             {!state.lastResult && (
-                <div className="text-center text-label-md text-on-surface-variant mb-4">
+                <div role="status" aria-live="polite" className="text-center text-label-md text-on-surface-variant mb-4">
                     {state.myChoiceSubmitted
                         ? (state.opponentReady ? t('rps.prompt.bothChoosing') : t('rps.prompt.waitOpp'))
                         : (state.opponentReady ? t('rps.prompt.yourTurn') : t('rps.prompt.choose'))}
@@ -64,7 +64,7 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
                         emoji={emoji}
                         label={choiceLabel(choice)}
                         selected={state.myChoice === choice}
-                        disabled={state.myChoiceSubmitted}
+                        disabled={state.myChoiceSubmitted || !!state.lastResult}
                         onChoose={choose}
                     />
                 ))}
@@ -73,32 +73,12 @@ export default function GameRps({ state, send, dispatch, exportCsv, sendEmoji, s
             <button
                 onClick={exportCsv}
                 disabled={!state.history.length}
-                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="tool-export w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>
 
-            <EmojiBar onEmoji={sendEmoji} />
-
-            <button
-                onClick={() => setShowChat(!showChat)}
-                className="w-full py-2 text-label-sm text-on-surface-variant hover:text-on-surface hover:underline transition-colors mt-2"
-            >
-                {showChat ? t('common.hideChat') : `\uD83D\uDCAC ${t('common.chat')}${state.chat.length > 0 ? ` (${state.chat.length})` : ''}`}
-            </button>
-
-            <AnimatePresence>
-                {showChat && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <Chat messages={state.chat} mySlot={state.mySlot!} onSend={sendChat} />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ToolSocial {...{ state, sendEmoji, sendChat, showChat, setShowChat }} />
         </>
     );
 }

@@ -3,6 +3,9 @@ import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Route, Switch, Redirect } from 'wouter';
 import './index.css';
+import './ui.css';
+import './desktop.css';
+import './tool-pages.css';
 import { I18nProvider } from './i18n';
 
 const App = lazy(() => import('./App.tsx'));

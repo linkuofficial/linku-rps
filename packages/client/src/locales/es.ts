@@ -212,6 +212,18 @@ const dict: Dict = {
 
     'darkMode.enable': 'Activar modo oscuro',
     'darkMode.disable': 'Desactivar modo oscuro',
+    'dice.inputHint': "Números enteros: 1–20 dados, 2–1000 caras cada uno.",
+    'draw.inputHint': "{n} entradas únicas · máximo {max} nombres de {length} caracteres. Se omiten líneas vacías y duplicados.",
+    'draw.inputTooLong': "Acorta la lista o los nombres para continuar.",
+    'coin.history': "Lanzamientos recientes (hasta 300 contados; últimos 10 visibles)",
+    'reaction.tryAgain': "Intentar de nuevo",
+    'wheel.color': "Color",
+    'wheel.inputHint': "{n}/{max} opciones · se necesitan al menos dos etiquetas no vacías.",
+    'reaction.soloHint': "Elige un modo y prepárate para empezar.",
+    'ui.title': "Herramientas cotidianas.",
+    'ui.subtitle': "Lanza, sortea, decide. Así de sencillo.",
+    'ui.join': "¿Tienes un código de sala?",
+    'ui.about': "Acerca del sitio",
 };
 
 export default dict;

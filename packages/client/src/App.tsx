@@ -24,7 +24,7 @@ interface ReconnectSnapshot {
 }
 
 export default function App() {
-  const { t } = useI18n();
+  const { t, toolName } = useI18n();
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { state, dispatch, handleMessage } = useGameState();
   const { send, connected, connectionState, reconnectAttempt, reconnectNow, isLocal, endLocalSession } = useSession(
@@ -133,18 +133,17 @@ export default function App() {
   const isToolSelector = state.phase === 'tool_select';
 
   return (
-    <div className="fixed inset-0 bg-surface">
-      {(isLocal || connectionState !== 'connected') && (
+    <div className="app-shell">
+      {!isLocal && (!isToolSelector || !!state.pendingJoinCode) && connectionState !== 'connected' && (
         <div className="pointer-events-none fixed bottom-3 left-3 right-3 z-40 sm:bottom-5 sm:left-5 sm:right-auto sm:w-[min(26rem,calc(100vw-2.5rem))]">
           <div
             className="pointer-events-auto border border-border bg-surface-alt/95 px-3 py-2 text-label-sm text-on-surface shadow-lg backdrop-blur-sm flex items-center justify-between gap-2"
             aria-live="polite"
           >
             <span className="truncate">
-              {isLocal && t('app.localGame')}
-              {!isLocal && connectionState === 'connecting' && t('app.connecting')}
-              {!isLocal && connectionState === 'reconnecting' && t('app.reconnecting', { n: reconnectAttempt })}
-              {!isLocal && connectionState === 'disconnected' && t('app.disconnected')}
+              {connectionState === 'connecting' && t('app.connecting')}
+              {connectionState === 'reconnecting' && t('app.reconnecting', { n: reconnectAttempt })}
+              {connectionState === 'disconnected' && t('app.disconnected')}
             </span>
             <button
               onClick={reconnectNow}
@@ -160,6 +159,8 @@ export default function App() {
         <ToolSelector
           onSelect={(tool) => dispatch({ type: 'SELECT_TOOL', tool })}
           connected={connected}
+          isDark={isDark}
+          onToggleDark={toggleDark}
           onJoinByCode={(code) => dispatch({ type: 'SET_PENDING_JOIN', code })}
           pendingJoinCode={state.pendingJoinCode}
           onPendingJoinTimeout={() => dispatch({ type: 'CLEAR_PENDING_JOIN' })}
@@ -167,25 +168,27 @@ export default function App() {
           onClearError={() => dispatch({ type: 'CLEAR_ERROR' })}
         />
       ) : (
-        <div className="flex h-full flex-col">
-          <div className="mx-auto w-full max-w-md px-4 pt-4 sm:px-6">
-            <div className="mb-3 flex items-center justify-between">
+        <div className="tool-page">
+          <div className="site-header">
+            <div className="site-header-inner">
               {(state.phase === 'lobby' || state.phase === 'waiting' || state.phase === 'playing') ? (
                 <button
+                  aria-label={t('common.backToTools')}
                   onClick={() => {
                     localStorage.removeItem(RECONNECT_STORAGE_KEY);
                     dispatch({ type: 'BACK_TO_TOOL_SELECT' });
                   }}
-                  className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
+                  className="tool-back"
                 >
-                  <Icon name="arrow_back" className="text-[20px]" />
+                  <Icon name="arrow_back" className="text-[20px]" /><span className="tool-back-label">TOOLBOX</span>
                 </button>
               ) : <div />}
-              <div className="flex items-center gap-2">
+              {isLocal && <span role="status" className="min-w-0 truncate px-2 text-label-sm text-on-surface-variant" title={t('app.localGame')}>{t('app.localGame')}</span>}
+              <div className="site-preferences">
                 <button
                   onClick={toggleDark}
                   aria-label={isDark ? t('darkMode.disable') : t('darkMode.enable')}
-                  className="flex items-center text-on-surface-variant hover:text-on-surface transition-colors"
+                  className="icon-button"
                 >
                   <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-[20px]" />
                 </button>
@@ -194,8 +197,9 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            <div className="mx-auto flex min-h-full w-full max-w-md items-center px-4 pb-6 sm:px-6">
+          <main className="tool-page-main">
+            {state.tool && state.phase === 'playing' && <header className="tool-page-heading"><h1>{toolName(state.tool)}</h1></header>}
+            <div className={`tool-page-body ${!isLocal && connectionState !== 'connected' ? 'pb-24' : ''}`}>
               {state.phase === 'lobby' && state.tool && (
                 <Lobby
                   send={send}
@@ -216,7 +220,7 @@ export default function App() {
                 <Finished state={state} send={send} dispatch={dispatch} connected={connected} />
               )}
             </div>
-          </div>
+          </main>
         </div>
       )}
     </div>

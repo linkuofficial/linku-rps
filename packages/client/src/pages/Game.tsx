@@ -39,7 +39,7 @@ interface Props {
 export default function Game({ state, send, dispatch }: Props) {
     const { t, locale, translateError } = useI18n();
     const isRtl = locale === 'ar';
-    const isChatSwipeEnabled = getGestureMode() === 'minimal';
+    const isChatSwipeEnabled = !!state.roomId && getGestureMode() === 'minimal';
 
     const [showChat, setShowChat] = useState(false);
     const chatSwipeStartRef = useRef<{ x: number; y: number; ts: number } | null>(null);
@@ -152,7 +152,7 @@ export default function Game({ state, send, dispatch }: Props) {
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="relative"
+            className="relative tool-game"
             onTouchStart={isChatSwipeEnabled ? handleChatSwipeStart : undefined}
             onTouchEnd={isChatSwipeEnabled ? handleChatSwipeEnd : undefined}
             style={isChatSwipeEnabled ? { touchAction: 'pan-y' } : undefined}
@@ -160,7 +160,7 @@ export default function Game({ state, send, dispatch }: Props) {
             {errorBanner}
             {invitePanel}
             <EmojiFloats emojis={state.emojis} mySlot={state.mySlot!} />
-            {child}
+            <div className="tool-workspace" data-tool={state.tool}>{child}</div>
         </motion.div>
     );
 
