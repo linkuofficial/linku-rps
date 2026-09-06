@@ -1,4 +1,5 @@
 # TASK: minimal-responsive-ui
+
 狀態: done（local implementation and browser verification; delivery authorized）
 
 ## 目標
@@ -8,6 +9,7 @@ Improve the small-screen interface while preserving the original desktop design.
 Owner correction (2026-09-06): Riku explicitly approved the ORIGINAL desktop appearance and rejected the desktop redesign. The large clock, horizontal tool strip, footer preferences and narrow centered tool pages are the desktop baseline. Do not redesign them as part of responsive work. New layout rules apply only below 900px.
 
 ## 驗收條件
+
 - [x] Below 900px, all six hub tools appear in a two-column grid. At desktop widths, restore the original horizontal strip and its existing scroll behavior.
 - [x] Consistent navigation, typography, focus indicators and comfortable touch targets.
 - [x] Desktop tool pages preserve their original narrow single-column composition. Small-screen changes preserve action order and do not affect desktop CSS.
@@ -24,6 +26,7 @@ No tools, dependencies, server/shared behavior, protocols, persistence, domains 
 None. Riku authorized local design and responsive implementation.
 
 ## HANDOFF（Codex 完成或卡住後填）
+
 - Branch: `codex/tool-polish`
 - Worktree: `D:\LINKU\rps\.worktrees\tool-polish`.
 - Summary: Restored the original desktop hub markup, clock typography, horizontal cards, footer controls, background tokens, language control and narrow centered tool pages. The redesigned grid/header and page layout are confined to `@media (max-width: 899px)`; `desktop.css` maps the tool shell to its original desktop geometry. Restored colorful wheel defaults and the original coin faces. The hub keeps common state when switching desktop/mobile render branches, so partially typed room codes survive resizing. All previous functional fixes remain. The earlier desktop redesign is superseded and rejected.

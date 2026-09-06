@@ -1,4 +1,5 @@
 # TASK: tool-polish
+
 狀態: done（local implementation and verification; delivery authorized）
 
 ## 目標
@@ -6,6 +7,7 @@
 Polish the six existing tools on local main `3423c6b`, under Riku's 2026-09-06 authorization to decide ordinary improvements autonomously.
 
 ## 驗收條件
+
 - [x] Dice inputs support clearing and retyping; invalid requests cannot be submitted. The roll button is available outside the collapsed settings, whose hidden fields cannot receive keyboard focus.
 - [x] Wheel options, displayed segments and selected outcome agree; editing is keyboard accessible and respects existing limits. Result geometry uses the returned option snapshot; a browser assertion checks the pointer angle against the selected label.
 - [x] Draw clearly reports effective entries and rejects oversized input rather than silently dropping names.
@@ -24,6 +26,7 @@ No new tools, dependencies, server/shared changes, persistence or protocol chang
 None for the bounded client improvements. Hosting multiplayer remains an owner decision.
 
 ## HANDOFF（Codex 完成或卡住後填）
+
 - Branch: `codex/tool-polish`
 - Worktree: `D:\LINKU\rps\.worktrees\tool-polish`
 - Base: `3423c6b` (local main and local origin/main matched; no fetch).
