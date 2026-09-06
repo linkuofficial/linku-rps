@@ -255,7 +255,11 @@ export default function ToolSelector({ onSelect, connected, isDark, onToggleDark
         >
             <header className="site-header">
                 <div className="site-header-inner">
-                    <span className="site-brand">LINKU<span className="brand-divider" aria-hidden="true">/</span><span>TOOLBOX</span></span>
+                    <span className="site-brand">
+                        <a className="site-brand-link" href="https://linku.tech/" aria-label="LINKU">LINKU</a>
+                        <span className="brand-divider" aria-hidden="true">/</span>
+                        <span>TOOLBOX</span>
+                    </span>
                     <div className="site-preferences"><DarkModeToggle isDark={isDark} toggle={onToggleDark} /><LanguageSwitcherCompact /></div>
                 </div>
             </header>
