@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AnimatePresence } from '../../lib/motion-lite';
-import { motion } from '../../lib/motion-lite';
-import EmojiBar from '../../components/EmojiBar';
-import Chat from '../../components/Chat';
+import ToolSocial from './ToolSocial';
 import { useI18n } from '../../i18n';
 import type { ReactionMode } from '@rps/shared';
 import type { GameToolProps } from './types';
@@ -44,9 +41,8 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
     };
 
     const updateReactionMode = (nextMode: ReactionUiMode) => {
+        if (state.tool !== 'reaction' || reaction?.phase === 'countdown' || reaction?.phase === 'green') return;
         setReactionUiMode(nextMode);
-        if (state.tool !== 'reaction') return;
-        if (reaction?.phase === 'countdown' || reaction?.phase === 'green') return;
         const isReady = !!(reaction && mySlot && reaction.readyBy.includes(mySlot));
         send({ type: 'reaction_ready', ready: isReady, mode: nextMode });
     };
@@ -54,13 +50,16 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
     useEffect(() => {
         if (state.tool !== 'reaction') return;
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key !== 'F1') return;
+            if (e.key !== 'F1' || e.repeat || (e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)))) return;
+            if (reaction?.phase !== 'countdown' && reaction?.phase !== 'green') return;
+            if (reaction.mode === 'target' && reaction.phase !== 'green') return;
+            if (mySlot && reaction.pressedBy.includes(mySlot)) return;
             e.preventDefault();
             pressReaction();
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [state.tool, pressReaction]);
+    }, [state.tool, pressReaction, reaction, mySlot]);
 
     useEffect(() => {
         window.localStorage.setItem(REACTION_UI_STORAGE_KEY, reactionUiMode);
@@ -106,12 +105,12 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
     const isGreenPhase = reaction?.phase === 'green';
     const isTargetMode = syncedMode === 'target';
     const f1LightVisualActive = isCountdownPhase ? f1LightsActive : 0;
-    const primaryActionDisabled = isIdlePhase ? isReactionLocked : (isTargetMode ? (!isGreenPhase || iAlreadyPressed) : false);
+    const primaryActionDisabled = isIdlePhase ? false : iAlreadyPressed || (isTargetMode && !isGreenPhase);
     const primaryActionLabel = isIdlePhase
         ? (myReady ? t('reaction.cancelReady') : t('reaction.tapReady'))
         : (isTargetMode ? t('reaction.pressButton') : `${t('reaction.pressButton')} (F1)`);
     const stageHint = isIdlePhase
-        ? `${t('reaction.youReady')}: ${myReady ? t('reaction.ready') : t('reaction.notReady')} | ${t('reaction.oppReady')}: ${oppReady ? t('reaction.ready') : t('reaction.notReady')}`
+        ? `${t('reaction.youReady')}: ${myReady ? t('reaction.ready') : t('reaction.notReady')} ${state.roomId ? `| ${t('reaction.oppReady')}: ${oppReady ? t('reaction.ready') : t('reaction.notReady')}` : ''}`
         : isCountdownPhase ? t('reaction.phaseCountdown')
             : isGreenPhase ? t('reaction.phaseGreen')
                 : t('reaction.phaseIdle');
@@ -131,11 +130,11 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
         : t('reaction.noResult');
     return (
         <>
-            <div className="mb-4 border border-primary bg-surface-container-lowest p-3 sm:p-4">
+            <div className="reaction-panel mb-4 border border-primary bg-surface-container-lowest p-3 sm:p-4">
                 <div className="mb-2">
                     <div>
                         <div className="text-label-sm text-on-surface-variant">{t('reaction.title')}</div>
-                        <div className="text-sm text-on-surface-variant">{t('reaction.modePickerHint')}</div>
+                        <div className="text-sm text-on-surface-variant">{state.roomId ? t('reaction.modePickerHint') : t('reaction.soloHint')}</div>
                     </div>
                 </div>
 
@@ -146,7 +145,7 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
                             <button
                                 key={mode.id}
                                 type="button"
-                                onClick={() => updateReactionMode(mode.id)}
+                                onClick={() => updateReactionMode(mode.id)} disabled={isReactionLocked} aria-pressed={selected}
                                 className={`border px-3 py-2 text-left transition-colors ${selected ? 'border-primary bg-primary text-on-primary' : 'border-border bg-surface-container-lowest text-on-surface hover:border-on-surface'}`}
                             >
                                 <div className="text-sm font-semibold">{mode.label}</div>
@@ -158,18 +157,18 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
 
                 <div className="p-4">
                     {reaction?.phase === 'result' ? (
-                        <div className="rounded-md border border-border bg-surface-alt p-4 text-center">
+                        <div role="status" aria-live="polite" className="rounded-md border border-border bg-surface-alt p-4 text-center">
                             <div className="text-label-sm text-on-surface-variant">{t('reaction.lastResult')}</div>
-                            <div className="mt-1 text-2xl font-semibold text-on-surface">{winnerLabel}</div>
-                            <div className="mx-auto mt-3 grid w-full max-w-md grid-cols-1 gap-2 text-sm text-on-surface sm:grid-cols-2">
+                            {state.roomId && <div className="mt-1 text-2xl font-semibold text-on-surface">{winnerLabel}</div>}
+                            <div className={`mx-auto mt-3 grid w-full max-w-md grid-cols-1 gap-2 text-sm text-on-surface ${state.roomId || syncedMode === 'target' ? 'sm:grid-cols-2' : ''}`}>
                                 <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
                                     <div className="text-label-sm text-on-surface-variant">{t('reaction.youMs')}</div>
                                     <div className="mt-1 text-xl font-semibold tabular-nums">{myReactionText}</div>
                                 </div>
-                                <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
+                                {state.roomId && <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
                                     <div className="text-label-sm text-on-surface-variant">{t('reaction.oppMs')}</div>
                                     <div className="mt-1 text-xl font-semibold tabular-nums">{oppReactionText}</div>
-                                </div>
+                                </div>}
                                 {syncedMode === 'target' && (
                                     <>
                                         <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left sm:col-span-2">
@@ -180,10 +179,10 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
                                             <div className="text-label-sm text-on-surface-variant">{t('reaction.deltaYou')}</div>
                                             <div className="mt-1 text-xl font-semibold tabular-nums">{formatDelta(myDeltaCentis)}</div>
                                         </div>
-                                        <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
+                                        {state.roomId && <div className="border border-border bg-surface-container-lowest px-3 py-2 text-left">
                                             <div className="text-label-sm text-on-surface-variant">{t('reaction.deltaOpp')}</div>
                                             <div className="mt-1 text-xl font-semibold tabular-nums">{formatDelta(oppDeltaCentis)}</div>
-                                        </div>
+                                        </div>}
                                     </>
                                 )}
                             </div>
@@ -231,35 +230,17 @@ export default function GameReaction({ state, send, exportCsv, sendEmoji, sendCh
                 </div>
             </div>
 
+            {reaction?.phase === 'result' && <button onClick={() => send({ type: 'reaction_ready', ready: true, mode: syncedMode })} className="tool-primary-action mb-4 min-h-11 w-full bg-primary py-3 font-medium text-on-primary hover:bg-primary-container">{t('reaction.tryAgain')}</button>}
+
             <button
                 onClick={exportCsv}
                 disabled={!state.history.length}
-                className="w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="tool-export w-full py-2 border border-primary text-on-surface text-sm font-medium hover:bg-surface-alt transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {t('common.exportCsv')}
             </button>
 
-            <EmojiBar onEmoji={sendEmoji} />
-
-            <button
-                onClick={() => setShowChat(!showChat)}
-                className="w-full py-2 text-label-sm text-on-surface-variant hover:text-on-surface hover:underline transition-colors mt-2"
-            >
-                {showChat ? t('common.hideChat') : `\uD83D\uDCAC ${t('common.chat')}${state.chat.length > 0 ? ` (${state.chat.length})` : ''}`}
-            </button>
-
-            <AnimatePresence>
-                {showChat && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <Chat messages={state.chat} mySlot={state.mySlot!} onSend={sendChat} />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ToolSocial {...{ state, sendEmoji, sendChat, showChat, setShowChat }} />
         </>
     );
 }

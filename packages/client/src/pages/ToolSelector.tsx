@@ -3,8 +3,8 @@ import { motion } from '../lib/motion-lite';
 import { Link } from 'wouter';
 import type { ToolId } from '@rps/shared';
 import { ROOM_CODE_LENGTH } from '@rps/shared';
+import { useCompactLayout } from '../hooks/useCompactLayout';
 import { useI18n } from '../i18n';
-import { useDarkMode } from '../hooks/useDarkMode';
 import LanguageSwitcherCompact from '../components/LanguageSwitcherCompact';
 import Icon from '../components/Icon';
 import type { IconName } from '../components/Icon';
@@ -12,6 +12,8 @@ import type { IconName } from '../components/Icon';
 interface Props {
     onSelect: (tool: ToolId) => void;
     connected: boolean;
+    isDark: boolean;
+    onToggleDark: () => void;
     onJoinByCode?: (code: string) => void;
     pendingJoinCode?: string | null;
     onPendingJoinTimeout?: () => void;
@@ -37,7 +39,8 @@ const TOOLS: ToolMeta[] = [
     { id: 'reaction', enabled: true, icon: 'touch_app' },
 ];
 
-export default function ToolSelector({ onSelect, connected, onJoinByCode, pendingJoinCode, onPendingJoinTimeout, error, onClearError }: Props) {
+export default function ToolSelector({ onSelect, connected, isDark, onToggleDark, onJoinByCode, pendingJoinCode, onPendingJoinTimeout, error, onClearError }: Props) {
+    const isCompact = useCompactLayout();
     const { t, locale, translateError } = useI18n();
     const isRtl = locale === 'ar';
     const currentYear = new Date().getFullYear();
@@ -95,6 +98,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
         reaction: t('tool.name.reaction'),
     };
 
+    if (!isCompact) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 14 }}
@@ -232,7 +236,7 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
                             </Link>
                         </div>
                         <div className={`w-full md:w-auto md:max-w-[320px] flex items-center gap-2 ${isRtl ? 'md:justify-self-start' : 'md:justify-self-end'}`}>
-                            <DarkModeToggle />
+                            <DarkModeToggle isDark={isDark} toggle={onToggleDark} />
                             <LanguageSwitcherCompact />
                         </div>
                     </div>
@@ -240,16 +244,139 @@ export default function ToolSelector({ onSelect, connected, onJoinByCode, pendin
             </footer>
         </motion.div>
     );
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="tool-hub"
+        >
+            <header className="site-header">
+                <div className="site-header-inner">
+                    <span className="site-brand">LINKU<span className="brand-divider" aria-hidden="true">/</span><span>TOOLBOX</span></span>
+                    <div className="site-preferences"><DarkModeToggle isDark={isDark} toggle={onToggleDark} /><LanguageSwitcherCompact /></div>
+                </div>
+            </header>
+            <main className="tool-selector-main">
+                <div className="tool-selector-content">
+                    <header className="hub-intro">
+                        <div>
+                            <h1>TOOLBOX</h1>
+                            <p>{t('ui.subtitle')}</p>
+                        </div>
+                        <div className="hub-clock">
+                            <time className="text-display-clock" dir="ltr">{clock}</time>
+                            <span>{t('toolSelector.standardTime')}</span>
+                        </div>
+                    </header>
+                    <div dir={isRtl ? 'rtl' : 'ltr'} className="tool-grid">
+                        {TOOLS.map((tool) => (
+                            <button
+                                key={tool.id}
+                                onClick={() => tool.enabled && handleToolClick(tool.id)}
+                                disabled={!tool.enabled || !!loadingTool || !!pendingJoinCode}
+                                aria-busy={loadingTool === tool.id}
+                                aria-label={displayNames[tool.id] + ' ' + t('common.startNow')}
+                                className="tool-card"
+                            >
+                                <span className="tool-card-top"><Icon name={tool.icon} className="tool-card-icon" /></span>
+                                <span className="tool-card-bottom"><span>{displayNames[tool.id]}</span></span>
+                                {!tool.enabled && <span className="text-label-sm">{t('toolSelector.comingSoon')}</span>}
+                            </button>
+                        ))}
+                    </div>
+
+                    {!connected && (
+                        <div className="hub-availability">
+                            {t('lobby.offlineSoloHint')}
+                        </div>
+                    )}
+
+                    {/* Join by code — skip tool selection for joiners */}
+                    {onJoinByCode && (
+                        <section className="hub-join" aria-label={t('common.join')}>
+                            <p className="hub-join-label">{t('ui.join')}</p>
+
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-3 text-center cursor-pointer"
+                                    onClick={() => { onClearError?.(); inputRef.current?.focus(); }}
+                                >
+                                    {translateError(error.code, error.message)}
+                                </motion.div>
+                            )}
+
+                            {!error && joinTimeoutMessage && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="border-2 border-primary bg-surface-alt text-on-surface text-label-md px-4 py-3 mb-3 text-center"
+                                >
+                                    <p>{joinTimeoutMessage}</p>
+                                    <button
+                                        onClick={() => { setJoinTimeoutMessage(null); inputRef.current?.focus(); }}
+                                        className="mt-2 px-3 py-1 border border-primary text-on-surface hover:bg-surface transition-colors"
+                                    >
+                                        {t('app.reconnectNow')}
+                                    </button>
+                                </motion.div>
+                            )}
+
+                            <div className="flex gap-2">
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={ROOM_CODE_LENGTH}
+                                    aria-label={t('lobby.joinCodePlaceholder')} placeholder={t('lobby.joinCodePlaceholder')}
+                                    value={joinCode}
+                                    dir="ltr"
+                                    disabled={!!pendingJoinCode}
+                                    onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, ROOM_CODE_LENGTH))}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                                    className="flex-1 min-w-0 px-4 py-3 bg-surface-container-lowest border border-border text-on-surface text-center text-lg font-mono tracking-[0.3em] uppercase placeholder:text-on-surface-variant placeholder:tracking-normal placeholder:font-sans placeholder:text-sm focus:outline-none focus:border-on-surface transition-colors disabled:opacity-50"
+                                />
+                                <button
+                                    onClick={handleJoin}
+                                    disabled={!connected || joinCode.trim().length !== ROOM_CODE_LENGTH || !!pendingJoinCode}
+                                    className="shrink-0 px-5 py-3 bg-surface-container-lowest border border-primary text-on-surface font-medium hover:bg-surface-alt transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {pendingJoinCode
+                                        ? <><span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />{t('toolSelector.joining')}</>
+                                        : t('common.join')
+                                    }
+                                </button>
+                            </div>
+                            {joinCode.length > 0 && joinCode.length !== ROOM_CODE_LENGTH && (
+                                <p className="mt-2 text-label-sm text-on-surface-variant text-center">{t('lobby.joinCodeLength', { n: ROOM_CODE_LENGTH })}</p>
+                            )}
+                        </section>
+                    )}
+                </div>
+            </main>
+
+            <footer className="site-footer">
+                <span>© {copyrightYears} Linku Toolbox</span>
+                <nav aria-label={t('ui.about')}>
+                    <Link href="/privacy">{t('common.privacyPolicy')}</Link>
+                    <Link href="/copyright">{t('common.copyrightNotice')}</Link>
+                </nav>
+            </footer>
+        </motion.div>
+    );
 }
 
-function DarkModeToggle() {
+function DarkModeToggle({ isDark, toggle }: { isDark: boolean; toggle: () => void }) {
     const { t } = useI18n();
-    const { isDark, toggle } = useDarkMode();
     return (
         <button
             onClick={toggle}
             aria-label={isDark ? t('darkMode.disable') : t('darkMode.enable')}
-            className="flex shrink-0 items-center text-on-surface-variant hover:text-on-surface transition-colors"
+            className="icon-button"
         >
             <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-[20px]" />
         </button>

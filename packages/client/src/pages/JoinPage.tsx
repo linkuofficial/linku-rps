@@ -32,15 +32,41 @@ export default function JoinPage() {
     },
   );
 
+  // Establish the tool before joining so the reducer accepts the joined/game_start
+  // messages using the same guards as a join initiated from the lobby.
   useEffect(() => {
-    if (connected && code && !joinSentRef.current) {
+    if (inferredTool) dispatch({ type: 'SELECT_TOOL', tool: inferredTool });
+  }, [dispatch, inferredTool]);
+
+  useEffect(() => {
+    if (connected && code && (!inferredTool || state.tool === inferredTool) && !joinSentRef.current) {
       joinSentRef.current = true;
       send({ type: 'join_room', roomId: code });
     }
-  }, [connected, code, send]);
+  }, [connected, code, send, inferredTool, state.tool]);
 
   if (state.phase === 'playing') {
-    return (<div className="min-h-screen bg-surface flex items-center justify-center p-4"><div className="w-full max-w-md"><Game state={state} send={send} dispatch={dispatch} /></div></div>);
+    return (
+      <div className="tool-page joined-tool-page">
+        <header className="site-header">
+          <div className="site-header-inner">
+            <button onClick={() => navigate('/')} aria-label={t('common.backToTools')} className="tool-back">
+              <Icon name="arrow_back" className="text-[20px]" /><span className="tool-back-label">TOOLBOX</span>
+            </button>
+            <div className="site-preferences">
+              <button onClick={toggleDark} aria-label={isDark ? t('darkMode.disable') : t('darkMode.enable')} className="icon-button">
+                <Icon name={isDark ? 'light_mode' : 'dark_mode'} className="text-[20px]" />
+              </button>
+              <LanguageSwitcherCompact />
+            </div>
+          </div>
+        </header>
+        <main className="tool-page-main">
+          <header className="tool-page-heading"><h1>{toolName(state.tool ?? 'rps')}</h1></header>
+          <Game state={state} send={send} dispatch={dispatch} />
+        </main>
+      </div>
+    );
   }
   if (state.phase === 'finished') {
     return (

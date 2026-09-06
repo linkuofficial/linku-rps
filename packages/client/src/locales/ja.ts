@@ -212,6 +212,18 @@ const dict: Dict = {
 
     'darkMode.enable': 'ダークモードを有効化',
     'darkMode.disable': 'ダークモードを無効化',
+    'dice.inputHint': "整数を入力：サイコロ1～20個、各2～1000面。",
+    'draw.inputHint': "重複を除く{n}件 · 最大{max}名、各{length}文字。空行と重複は除外されます。",
+    'draw.inputTooLong': "リストまたは名前を短くしてください。",
+    'coin.history': "最近のコイントス（最大300回を集計、最新10回を表示）",
+    'reaction.tryAgain': "もう一度",
+    'wheel.color': "色",
+    'wheel.inputHint': "{n}/{max}個の選択肢 · 空でない選択肢が2個以上必要です。",
+    'reaction.soloHint': "モードを選び、準備ができたら開始。",
+    'ui.title': "毎日の小さな道具",
+    'ui.subtitle': "振る、引く、決める。シンプルに。",
+    'ui.join': "ルームコードをお持ちですか？",
+    'ui.about': "このサイトについて",
 };
 
 export default dict;

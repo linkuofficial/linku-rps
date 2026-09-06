@@ -211,6 +211,18 @@ const dict: Dict = {
     'tool.subtitle.reaction': '紅燈倒數，綠燈即按',
     'darkMode.enable': '啟用深色模式',
     'darkMode.disable': '關閉深色模式',
+    'dice.inputHint': "請輸入整數：1–20 顆骰子，每顆 2–1000 面。",
+    'draw.inputHint': "{n} 個不重複項目 · 最多 {max} 個名字，每個 {length} 字。忽略空白行及重複名字。",
+    'draw.inputTooLong': "請縮短名單或名字後再抽選。",
+    'coin.history': "近期擲幣（統計最多 300 次，顯示最新 10 次）",
+    'reaction.tryAgain': "再試一次",
+    'wheel.color': "顏色",
+    'wheel.inputHint': "{n}/{max} 個選項 · 至少需要兩個非空白選項。",
+    'reaction.soloHint': "選擇模式，準備好後開始。",
+    'ui.title': "日常小工具",
+    'ui.subtitle': "擲骰、抽籤、做決定。簡單就好。",
+    'ui.join': "已有房間代碼？",
+    'ui.about': "關於本站",
 };
 
 export default dict;

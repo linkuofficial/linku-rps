@@ -212,6 +212,18 @@ const dict: Dict = {
 
     'darkMode.enable': 'Activer le mode sombre',
     'darkMode.disable': 'Désactiver le mode sombre',
+    'dice.inputHint': "Nombres entiers : 1–20 dés, 2–1000 faces chacun.",
+    'draw.inputHint': "{n} entrées uniques · maximum {max} noms de {length} caractères. Lignes vides et doublons ignorés.",
+    'draw.inputTooLong': "Raccourcissez la liste ou les noms pour continuer.",
+    'coin.history': "Lancers récents (300 comptés au maximum, 10 affichés)",
+    'reaction.tryAgain': "Réessayer",
+    'wheel.color': "Couleur",
+    'wheel.inputHint': "{n}/{max} options · au moins deux libellés non vides.",
+    'reaction.soloHint': "Choisissez un mode, puis préparez-vous à commencer.",
+    'ui.title': "Les outils du quotidien.",
+    'ui.subtitle': "Lancez, tirez, décidez. Tout simplement.",
+    'ui.join': "Vous avez un code de salon ?",
+    'ui.about': "À propos du site",
 };
 
 export default dict;
